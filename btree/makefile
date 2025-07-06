@@ -16,9 +16,9 @@
 #   with this program; if not, write to the Free Software Foundation, Inc.,
 #   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #-------------------------------------------------------------------------------
-# file: 	makefile
+# file:   makefile
 # author: J. McIntosh
-# brief:	makefile for libbtree.so
+# brief:  makefile for libbtree.so
 #-------------------------------------------------------------------------------
 libbtree.so: btree_asm.o btree.o
 	gcc -z noexecstack -g -shared btree_asm.o btree.o -o libbtree.so
