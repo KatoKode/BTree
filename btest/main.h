@@ -1,5 +1,6 @@
 /*------------------------------------------------------------------------------
-    Assembly Language Implementation of a B-Tree
+    B-Tree Implementation in Assembly Language as Shared Library with C
+    Interface
     Copyright (C) 2025  J. McIntosh
 
     This program is free software; you can redistribute it and/or modify
@@ -19,14 +20,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 #include <pthread.h>
 #include "../btree/btree.h"
 #include "../util/util.h"
-/*------------------------------------------------------------------------------
-  file:    main.h
-  author:  J. McIntosh
-  brief:   B-Tree demo program
-------------------------------------------------------------------------------*/
 
 // defines you can modify
 #define DATA_COUNT    128

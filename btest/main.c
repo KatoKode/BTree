@@ -1,5 +1,6 @@
 /*------------------------------------------------------------------------------
-    B-Tree Implementation in x86_64 Assembly Language with C Interface
+    B-Tree Implementation in Assembly Language as Shared Library with C
+    Interface
     Copyright (C) 2025  J. McIntosh
 
     This program is free software; you can redistribute it and/or modify
@@ -17,11 +18,7 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 ------------------------------------------------------------------------------*/
 #include "main.h"
-/*------------------------------------------------------------------------------
-  file:    main.h
-  author:  J. McIntosh
-  brief:   B-Tree demo program
-------------------------------------------------------------------------------*/
+
 int main (int argc, char *argv[]) {
 
   if (argc < 2) {
@@ -169,13 +166,20 @@ void walk_cb (void const *vp) {
 
   fflush(stdout);
 
-  if ((ndx & 0xf) == 0) sched_yield();
+  if ((ndx % 8) == 0) {
+    struct timespec req = { 0, 250000000 };
+    nanosleep(&req, NULL);
+  }
 }
 //
 // begin tree walking
 //
 void walk_tree (b_tree_t *tree) {
   puts("\n---| walk tree |---\n");
+
+  struct timespec req = { 1, 0 };
+  nanosleep(&req, NULL);
+
   // initialize index used by tree walking callback
   ndx = 0L;
 
