@@ -16,13 +16,13 @@
 #   with this program; if not, write to the Free Software Foundation, Inc.,
 #   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #-------------------------------------------------------------------------------
-# file: 	makefile
+# file:   makefile
 # author: J. McIntosh
-# brief:	makefile for btest program
+# brief:  makefile for btest program
 #-------------------------------------------------------------------------------
 btest: main.o ../btree/libbtree.so ../util/libutil.so
-	gcc -z noexecstack -g main.o ../btree/libbtree.so ../util/libutil.so -o btest
+	gcc -march=x86-64 -m64 -z noexecstack main.o ../btree/libbtree.so ../util/libutil.so -o btest
 main.o: main.c
-	gcc -Wall -g -c main.c -pthread -o main.o
+	gcc -march=x86-64 -m64 -Wall -c main.c -pthread -o main.o
 clean:
 	rm -f btest main.o
