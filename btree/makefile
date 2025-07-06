@@ -21,10 +21,10 @@
 # brief:  makefile for libbtree.so
 #-------------------------------------------------------------------------------
 libbtree.so: btree_asm.o btree.o
-	gcc -z noexecstack -g -shared btree_asm.o btree.o -o libbtree.so
+	gcc -march=x86-64 -m64 -z noexecstack -shared btree_asm.o btree.o -o libbtree.so
 btree.o: btree.c
-				gcc -g -fPIC -c btree.c -o btree.o
+				gcc -march=x86-64 -m64 -fPIC -c btree.c -o btree.o
 btree_asm.o: btree.asm
-				nasm -g -f elf64 btree.asm -o btree_asm.o
+				nasm -f elf64 btree.asm -o btree_asm.o
 clean:
 	rm -f libbtree.so btree.o btree_asm.o
