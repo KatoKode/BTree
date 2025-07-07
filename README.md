@@ -3,16 +3,16 @@
 
 Just Another Armchair Programmer
 
-B-Tree Implementation in x86_64 Assembly Language with C interface
+BTree Implementation in x86_64 Assembly Language with C interface
 
 by Jerry McIntosh
 
 ---
 
 # INTRODUCTION
-This is an Assembly Language implementation of a B-Tree (Multiway-Tree).  The B-Tree is implemented as a shared-library with a C interface.  There is also a C demo program.
+This is an Assembly Language implementation of a BTree (Multiway-Tree).  The BTree is implemented as a shared-library with a C interface.  There is also a C demo program.
 
-The B-Tree implementaton is based on a C++ implementation found at:
+The BTree implementaton is based on a C++ implementation found at:
 
 [GeeksforGeeks: Delete Operation in B-Tree](https://www.geeksforgeeks.org/delete-operation-in-b-tree/?ref=lbp)
 
@@ -26,7 +26,7 @@ The B-Tree implementaton is based on a C++ implementation found at:
 
 ---
 
-# CREATE THE DEMO WITH THE MAKE UTILITY
+# CREATE THE DEMO
 Run the following command in the `BTree-main` folder:
 ```bash
 sh ./btree_make.sh
