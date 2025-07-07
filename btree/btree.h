@@ -1,5 +1,5 @@
 /*------------------------------------------------------------------------------
-     B-Tree Implementation in x86_64 Assembly Language with C Interface
+    BTree Implementation in x86_64 Assembly Language with C Interface
     Copyright (C) 2025  J. McIntosh
 
     This program is free software; you can redistribute it and/or modify
@@ -18,11 +18,7 @@
 ------------------------------------------------------------------------------*/
 #ifndef b_tree_H
 #define b_tree_H
-/*------------------------------------------------------------------------------
-  file:    btree.h
-  author:  J. McIntosh
-  brief:   B-Tree implementation
-------------------------------------------------------------------------------*/
+
 #include <unistd.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -71,4 +67,5 @@ void b_tree_init (b_tree_t *, size_t const, size_t const, b_compare_cb,
     b_compare_cb, b_delete_cb, b_get_key_cb);
 void b_tree_term (b_tree_t *);
 void b_walk (b_tree_t *, b_walk_cb);
+
 #endif

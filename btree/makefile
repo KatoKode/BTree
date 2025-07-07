@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-#    B-Tree Implementation in x86_64 Assembly Language with C Interface
+#   BTree Implementation in x86_64 Assembly Language with C Interface
 #   Copyright (C) 2025  J. McIntosh
 #
 #   This program is free software; you can redistribute it and/or modify
@@ -16,15 +16,12 @@
 #   with this program; if not, write to the Free Software Foundation, Inc.,
 #   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #-------------------------------------------------------------------------------
-# file:   makefile
-# author: J. McIntosh
-# brief:  makefile for libbtree.so
-#-------------------------------------------------------------------------------
+#
 libbtree.so: btree_asm.o btree.o
 	gcc -march=x86-64 -m64 -z noexecstack -shared btree_asm.o btree.o -o libbtree.so
 btree.o: btree.c
-				gcc -march=x86-64 -m64 -fPIC -c btree.c -o btree.o
+	gcc -march=x86-64 -m64 -Wall -fPIC -c btree.c -o btree.o
 btree_asm.o: btree.asm
-				nasm -f elf64 btree.asm -o btree_asm.o
+	nasm -f elf64 btree.asm -o btree_asm.o
 clean:
 	rm -f libbtree.so btree.o btree_asm.o

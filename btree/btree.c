@@ -1,5 +1,5 @@
 /*------------------------------------------------------------------------------
-     B-Tree Implementation in x86_64 Assembly Language with C Interface
+    BTree Implementation in x86_64 Assembly Language with C Interface
     Copyright (C) 2025  J. McIntosh
 
     This program is free software; you can redistribute it and/or modify
@@ -17,9 +17,10 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 ------------------------------------------------------------------------------*/
 #include "btree.h"
-/*------------------------------------------------------------------------------
-  file:    btree.c
-  author:  J. McIntosh
-  brief:   B-Tree implementation
-------------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// initBTreeLibrary
+void __attribute__ ((constructor)) initBTreeLibrary(void) { }
+//------------------------------------------------------------------------------
+// termBTreeLibrary
+void __attribute__ ((destructor)) termBTreeLibrary(void) { }
 

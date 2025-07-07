@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;    B-Tree Implementation in x86_64 Assembly Language with C Interface
+;   BTree Implementation in x86_64 Assembly Language with C Interface
 ;   Copyright (C) 2025  J. McIntosh
 ;
 ;   This program is free software; you can redistribute it and/or modify
@@ -18,11 +18,6 @@
 ;-------------------------------------------------------------------------------
 %ifndef BTREE_INC
 %define BTREE_INC  1
-;-------------------------------------------------------------------------------
-; file:   btree.asm
-; author: J. McIntosh
-; brief:  b-tree implementation
-;-------------------------------------------------------------------------------
 ;
 struc b_node
   .nobj:        resq    1   ; number of objects
