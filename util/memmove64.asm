@@ -1,5 +1,5 @@
 ;-------------------------------------------------------------------------------
-;   B-Tree Implementation in x86_64 Assembly Language with C Interface
+;   BTree Implementation in x86_64 Assembly Language with C Interface
 ;   Copyright (C) 2025  J. McIntosh
 ;
 ;   This program is free software; you can redistribute it and/or modify
@@ -17,12 +17,7 @@
 ;   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 ;-------------------------------------------------------------------------------
 %ifndef MEMMOVE64_ASM
-%define MEMMOVE64_ASM
-;-------------------------------------------------------------------------------
-; file:   memmove64.asm
-; author: J. McIntosh
-; brief:  quadword (64-bits) memory move routine
-;-------------------------------------------------------------------------------
+%define MEMMOVE64_ASM 1
 ;
 QW_SIZE     EQU     8
 ;

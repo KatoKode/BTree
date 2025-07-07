@@ -1,5 +1,5 @@
 /*------------------------------------------------------------------------------
-    B-Tree Implementation in x86_64 Assembly Language with C Interface
+    BTree Implementation in x86_64 Assembly Language with C Interface
     Copyright (C) 2025  J. McIntosh
 
     This program is free software; you can redistribute it and/or modify
@@ -17,14 +17,11 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 ------------------------------------------------------------------------------*/
 #ifndef UTIL_H
-#define UTIL_H
-/*------------------------------------------------------------------------------
-  file:   util.h
-  author: J.McIntosh
-  brief:  utilities shared-library
-------------------------------------------------------------------------------*/
+#define UTIL_H  1
+
 #include <unistd.h>
 #include <stdint.h>
 
 void * memmove64 (void *, void const *, ssize_t);
+
 #endif
