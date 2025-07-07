@@ -1,6 +1,6 @@
 # !/bin/sh
 #-------------------------------------------------------------------------------
-#   B-Tree Implementation in x86_64 Assembly Language with C Interface
+#   BTree Implementation in x86_64 Assembly Language with C Interface
 #   Copyright (C) 2025  J. McIntosh
 #
 #   This program is free software; you can redistribute it and/or modify
@@ -16,10 +16,6 @@
 #   You should have received a copy of the GNU General Public License along
 #   with this program; if not, write to the Free Software Foundation, Inc.,
 #   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-#-------------------------------------------------------------------------------
-# file:   go_btest.sh
-# author: J. McIntosh
-# brief:  run script for B-Tree demo program
 #-------------------------------------------------------------------------------
 #
 echo -e "\nRunning ./btest"

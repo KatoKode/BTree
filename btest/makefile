@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-#   B-Tree Implementation in x86_64 Assembly Language with C Interface
+#   BTree Implementation in x86_64 Assembly Language with C Interface
 #   Copyright (C) 2025  J. McIntosh
 #
 #   This program is free software; you can redistribute it and/or modify
