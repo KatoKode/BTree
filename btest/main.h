@@ -19,7 +19,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <time.h>
 #include <pthread.h>
 #include "../btree/btree.h"
 #include "../util/util.h"
@@ -54,5 +53,7 @@ void o_del_cb (void const *);
 void walk_cb (void const *);
 // output data_t object
 void print_data (char const *, data_t const *);
+// begin termination of tree
+void term_tree (b_tree_t *);
 // begin walking the tree
 void walk_tree (b_tree_t *);

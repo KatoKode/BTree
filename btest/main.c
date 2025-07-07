@@ -57,7 +57,7 @@ int main (int argc, char *argv[]) {
       (void) snprintf(d.s, STR_LEN + 1, "%8.6f", d.d);
 
       // yield the CPU when dealing with duplicates
-      if ((x++ & 0x2) == 0L) sched_yield();
+      if ((x++ % 2L) == 0L) sched_yield();
 
       // search tree for duplicate data_t object
     } while ((b_search(tree->root, (void const *)&da[i], &db)) != NULL);
@@ -84,7 +84,7 @@ int main (int argc, char *argv[]) {
     }
 
     // yield the CPU
-    if ((n & 0x2) == 0L) sched_yield();
+    if ((n % 2L) == 0L) sched_yield();
   }
 
   // try to delete a data_t object that is not in the tree
@@ -97,8 +97,7 @@ int main (int argc, char *argv[]) {
 
   // release memory held by all the data_t objects (if any), as well as, all
   // the memory held by the tree
-  b_tree_term(tree);
-  b_tree_free(tree);
+  term_tree(tree);
 
   return 0;
 }
@@ -109,8 +108,8 @@ int o_cmp_cb (void const *vp1, void const *vp2) {
   data_t const *d1 = vp1;
   data_t const *d2 = vp2;
 
-  printf("%s:  d1: %8.6f s: %8s (lt eq gt) d2: %8.6f s: %8s\n",__func__,d1->d,
-      d1->s, d2->d,d2->s);
+  printf("%s:  d1: %8.6f s: %8s (lt eq gt) d2: %8.6f s: %8s\n",
+      __func__, d1->d, d1->s, d2->d, d2->s);
 
   // do comparsions
   if (d1->d > d2->d) return 1;
@@ -124,8 +123,8 @@ int k_cmp_cb (void const * vp1, void const * vp2) {
   double const d = *(double const *)vp1;
   data_t const *d2 = vp2;
 
-  printf("%s:  d: %8.6f (lt eq gt) d: %8.6f  s:%8s\n", __func__,
-      d, d2->d, d2->s);
+  printf("%s:  d: %8.6f (lt eq gt) d: %8.6f  s:%8s\n",
+      __func__, d, d2->d, d2->s);
 
   // do comparsions
   if (d > d2->d) return 1;
@@ -156,6 +155,15 @@ void print_data (char const *s, data_t const *d) {
   printf("%s:  d: %8.6f s: %8s\n", s, d->d, d->s);
 }
 //
+// terminate tree
+//
+void term_tree (b_tree_t *tree) {
+  puts("\n---| term tree |---\n");
+  b_tree_term(tree);
+  b_tree_free(tree);
+}
+
+//
 // callback for tree walking
 //
 void walk_cb (void const *vp) {
@@ -165,19 +173,13 @@ void walk_cb (void const *vp) {
 
   fflush(stdout);
 
-  if ((ndx % 8) == 0) {
-    struct timespec req = { 0, 250000000 };
-    nanosleep(&req, NULL);
-  }
+  if ((ndx % 8) == 0) sched_yield();
 }
 //
 // begin tree walking
 //
 void walk_tree (b_tree_t *tree) {
   puts("\n---| walk tree |---\n");
-
-  struct timespec req = { 1, 0 };
-  nanosleep(&req, NULL);
 
   // initialize index used by tree walking callback
   ndx = 0L;
