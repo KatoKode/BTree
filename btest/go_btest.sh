@@ -22,8 +22,8 @@ echo -e "\nRunning ./btest"
 rnd=`shuf -i 10000000-99999999 -n 1`
 ./btest "${rnd}" > ./out.txt
 echo -e "\nOutput in file ./out.txt\n"
-read -p "View file ./out.txt (y, n): " YN
-case $YN in
+read -r -p "View file ./out.txt? [Y/n] " YN
+case ${YN:-Y} in
   'y'|'Y') less ./out.txt ;;
   'n'|'N') echo -e "\nExiting\n" ;;
   *) ;;
