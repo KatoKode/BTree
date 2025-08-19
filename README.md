@@ -35,9 +35,9 @@ sh ./btree_make.sh
 ---
 
 # RUN THE DEMO
-In folder `btest` enter the following command:
+In folder `demo` enter the following command:
 ```bash
-./go_btest.sh
+./go_demo.sh
 ```
 
 ---
