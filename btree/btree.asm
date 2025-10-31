@@ -23,11 +23,13 @@ extern calloc
 extern free
 extern memset
 extern printf
+extern sched_yield
 extern memmove64
 ;
 ;-------------------------------------------------------------------------------
 ;
 QW_SIZE       EQU     8
+DIVISOR       EQU     8             ; used primarily for sched_yield()
 ;
 HUNT_MAX      EQU     9
 ;
@@ -99,7 +101,6 @@ section .text
 ;   QWORD [rbp - 24]  = (b_node_t *child)
 ;   QWORD [rbp - 32]  = (b_node_t *sibling)
 ;   QWORD [rbp - 40]  = (size_t o_size)
-;   QWORD [rbp - 48]  = (size_t x)
 ;-------------------------------------------------------------------------------
 ;
       static b_borrow_from_next
@@ -107,7 +108,8 @@ b_borrow_from_next:
 ; prologue:
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 48
+      sub       rsp, 40
+      push      rbx
       push      r12
 ; QWORD [rbp - 8] = rdi (node)
       mov       QWORD [rbp - 8], rdi
@@ -123,18 +125,21 @@ b_borrow_from_next:
       mov       rsi, QWORD [rbp - 16]
 ; END PRINTF
 ; size_t o_size = node->tree->o_size;
-      mov       rcx, QWORD [rdi + b_node.tree]
-      mov       rax, QWORD [rcx + b_tree.o_size]
+      mov       rbx, QWORD [rdi + b_node.tree]
+      mov       rax, QWORD [rbx + b_tree.o_size]
       mov       QWORD [rbp - 40], rax
 ; b_node_t *child = node->child[i];
       call      b_child_at
-      mov       rcx, QWORD [rax]
-      mov       QWORD [rbp - 24], rcx
+      mov       rbx, QWORD [rax]
+      mov       QWORD [rbp - 24], rbx
 ; b_node_t *sibling = node->child[i + 1L];
       inc       rsi
       call      b_child_at
-      mov       rcx, QWORD [rax]
-      mov       QWORD [rbp - 32], rcx
+      mov       rbx, QWORD [rax]
+      mov       QWORD [rbp - 32], rbx
+;
+; child->object[child->nobj] = node->object[i];
+;
 ; (void)memmove64(&child->object[child->nobj], &node->object[i],
 ;     node->tree->o_size);
       mov       rdi, QWORD [rbp - 8]
@@ -152,7 +157,7 @@ b_borrow_from_next:
       mov       rdi, QWORD [rbp - 24]
       movzx     eax, BYTE [rdi + b_node.leaf]
       test      eax, eax
-      jnz       .child_not_leaf
+      jnz       .child_is_leaf
 ;   child->child[child->nobj + 1L] = sibling->child[0];
       mov       rdi, QWORD [rbp - 32]
       mov       rax, QWORD [rdi + b_node.child]
@@ -162,7 +167,10 @@ b_borrow_from_next:
       inc       rsi
       call      b_child_at
       pop       QWORD [rax]
-.child_not_leaf:
+.child_is_leaf:
+;
+; node->object[i] = sibling->object[0];
+;
 ; (void)memmove64(&node->object[i], sibling->object, node->tree->o_size);
       mov       rdi, QWORD [rbp - 32]
       mov       rax, QWORD [rdi + b_node.object]
@@ -174,37 +182,68 @@ b_borrow_from_next:
       pop       rsi
       mov       rdx, QWORD [rbp - 40]
       call      memmove64 wrt ..plt
-; (void)memmove64(sibling->object, &sibling->object[1L],
-;     ((sibling->nobj - 1L) * node->tree->o_size));
+; for (size_t x = 1; x < sibling->nobj; ++x) {
+      xor       rbx, rbx
+.object_move_loop:
+      inc       rbx
       mov       rdi, QWORD [rbp - 32]
-      mov       rax, QWORD [rdi + b_node.nobj]
-      dec       rax
-      mul       QWORD [rbp - 40]
-      mov       rdx, rax
-      mov       rax, QWORD [rdi + b_node.object]
-      add       rax, QWORD [rbp - 40]
-      mov       rsi, rax
-      mov       rax, QWORD [rdi + b_node.object]
+      cmp       rbx, QWORD [rdi + b_node.nobj]
+      jae       .object_move_break
+;   sibling->object[x - 1] = sibling->object[x];
+      mov       rsi, rbx
+      call      b_object_at
+      push      rax
+      dec       rsi
+      call      b_object_at
       mov       rdi, rax
+      pop       rsi
+      mov       rdx, QWORD [rbp - 40]
       call      memmove64 wrt ..plt
+;   if ((x % 8) == 0) sched_yield();
+      xor       rdx, rdx
+      mov       rax, rbx
+      mov       rcx, DIVISOR
+      div       rcx 
+      test      rdx, rdx
+      jnz       .cont_01
+      ALIGN_STACK_AND_CALL r12, sched_yield, wrt, ..plt
+.cont_01:
+      jmp       .object_move_loop
+; }
+.object_move_break:
 ; if (sibling->leaf == false) {
       mov       rdi, QWORD [rbp - 32]
       movzx     eax, BYTE [rdi + b_node.leaf]
       test      eax, eax
-      jnz       .sibling_not_leaf
-;   (void)memmove64(sibling->child, &sibling->child[1L],
-;       (sibling->nobj * sizeof(b_node_t *)));
-      mov       rax, QWORD [rdi + b_node.nobj]
-      mov       rcx, QW_SIZE
-      mul       rcx
-      mov       rdx, rax
-      mov       rax, QWORD [rdi + b_node.child]
-      mov       rdi, rax
-      add       rax, rcx
-      mov       rsi, rax
-      call      memmove64 wrt ..plt
+      jnz       .sibling_is_leaf
+;   for (size_t x = 1; i <= sibling->nobj; ++i) {
+      xor       rbx, rbx
+.child_move_loop:
+      inc       rbx
+      mov       rdi, QWORD [rbp - 32]
+      cmp       rbx, QWORD [rdi + b_node.nobj]
+      ja        .child_move_break
+;     sibling->child[x - 1] = sibling->child[x];
+      mov       rsi, rbx
+      call      b_child_at
+      push      QWORD [rax]
+      dec       rsi
+      call      b_child_at
+      pop       QWORD [rax]
+;   if ((x % 8) == 0) sched_yield();
+      xor       rdx, rdx
+      mov       rax, rbx
+      mov       rcx, DIVISOR
+      div       rcx 
+      test      rdx, rdx
+      jnz       .cont_02
+      ALIGN_STACK_AND_CALL r12, sched_yield, wrt, ..plt
+.cont_02:
+      jmp       .child_move_loop
+;   }
+.child_move_break:
 ; }
-.sibling_not_leaf:
+.sibling_is_leaf:
 ; child->nobj += 1;
       mov       rdi, QWORD [rbp - 24]
       inc       QWORD [rdi + b_node.nobj]
@@ -213,6 +252,7 @@ b_borrow_from_next:
       dec       QWORD [rdi + b_node.nobj]
 ; epilogue
       pop       r12
+      pop       rbx
       mov       rsp, rbp
       pop       rbp
       ret
@@ -234,7 +274,6 @@ b_borrow_from_next:
 ;   QWORD [rbp - 24]  = (b_node_t *child)
 ;   QWORD [rbp - 32]  = (b_node_t *sibling)
 ;   QWORD [rbp - 40]  = (size_t o_size)
-;   QWORD [rbp - 48]  = (ssize_t x)
 ;-------------------------------------------------------------------------------
 ;
       static b_borrow_from_prev
@@ -242,7 +281,8 @@ b_borrow_from_prev:
 ; prologue:
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 48
+      sub       rsp, 40
+      push      rbx
       push      r12
 ; QWORD [rbp - 8] = rdi (node)
       mov       QWORD [rbp - 8], rdi
@@ -258,28 +298,28 @@ b_borrow_from_prev:
       mov       rsi, QWORD [rbp - 16]
 ; END PRINTF
 ; size_t o_size = node->tree->o_size;
-      mov       rcx, QWORD [rdi + b_node.tree]
-      mov       rax, QWORD [rcx + b_tree.o_size]
+      mov       rbx, QWORD [rdi + b_node.tree]
+      mov       rax, QWORD [rbx + b_tree.o_size]
       mov       QWORD [rbp - 40], rax
 ; b_node_t *child = node->child[i];
       call      b_child_at
-      mov       rcx, QWORD [rax]
-      mov       QWORD [rbp - 24], rcx
-; b_node_t *sibling = node->child[i - 1L];
+      mov       rbx, QWORD [rax]
+      mov       QWORD [rbp - 24], rbx
+; b_node_t *sibling = node->child[i - 1];
       dec       rsi
       call      b_child_at
-      mov       rcx, QWORD [rax]
-      mov       QWORD [rbp - 32], rcx
-; for (ssize_t x = child->nobj - 1L; x >= 0L; x--)
-;   child->object[x + 1L] = child->object[x];
+      mov       rbx, QWORD [rax]
+      mov       QWORD [rbp - 32], rbx
+; for (ssize_t x = child->nobj - 1; x >= 0; --x) {
       mov       rdi, QWORD [rbp - 24]
-      mov       rax, QWORD [rdi + b_node.nobj]
-      dec       rax
-      mov       QWORD [rbp - 48], rax
+      mov       rbx, QWORD [rdi + b_node.nobj]
 .object_move_loop:
-      cmp       rax, 0
+      dec       rbx
+      cmp       rbx, 0
       jl        .object_move_break
-      mov       rsi, rax
+;   child->object[x + 1] = child->object[x];
+      mov       rdi, QWORD [rbp - 24]
+      mov       rsi, rbx
       call      b_object_at
       push      rax
       inc       rsi
@@ -288,45 +328,60 @@ b_borrow_from_prev:
       pop       rsi
       mov       rdx, QWORD [rbp - 40]
       call      memmove64 wrt ..plt
-      mov       rdi, QWORD [rbp - 24]
-      dec       QWORD [rbp - 48]
-      mov       rax, QWORD [rbp - 48]
+;   if ((x % 8) == 0) sched_yield();
+      xor       rdx, rdx
+      mov       rax, rbx
+      mov       rcx, DIVISOR
+      div       rcx 
+      test      rdx, rdx
+      jnz       .cont_01
+      ALIGN_STACK_AND_CALL r12, sched_yield, wrt, ..plt
+.cont_01:
       jmp       .object_move_loop
+; }
 .object_move_break:
+;
 ; if (child->leaf == false) {
       mov       rdi, QWORD [rbp - 24]
       movzx     eax, BYTE [rdi + b_node.leaf]
       test      eax, eax
       jnz       .child_is_leaf
-;   for (ssize_t x = child->nobj; x >= 0L; x--)
-;     child->child[x + 1L] = child->child[x];
-      mov       rax, QWORD [rdi + b_node.nobj]
-      mov       QWORD [rbp - 48], rax
+;   for (ssize_t x = child->nobj; x >= 0; --x) {
+      mov       rbx, QWORD [rdi + b_node.nobj]
 .child_move_loop:
-      cmp       rax, 0
+      cmp       rbx, 0
       jl        .child_move_break
-      mov       rsi, rax
+;     child->child[x + 1] = child->child[x];
+      mov       rsi, rbx
       call      b_child_at
       push      QWORD [rax]
       inc       rsi
       call      b_child_at
       pop       QWORD [rax]
-      dec       QWORD [rbp - 48]
-      mov       rax, QWORD [rbp - 48]
+;   if ((x % 8) == 0) sched_yield();
+      xor       rdx, rdx
+      mov       rax, rbx
+      mov       rcx, DIVISOR
+      div       rcx 
+      test      rdx, rdx
+      jnz       .cont_02
+      ALIGN_STACK_AND_CALL r12, sched_yield, wrt, ..plt
+.cont_02:
+      dec       rbx
       jmp       .child_move_loop
+; }
 .child_move_break:
-      
 ; }
 .child_is_leaf:
-; (void)memmove64(&child->object[0L], &node->object[i - 1L],
-;     node->tree->o_size);
+;
+; child->object[0] = node->object[i - 1];
       mov       rdi, QWORD [rbp - 8]
       mov       rsi, QWORD [rbp - 16]
       dec       rsi
       call      b_object_at
       mov       rsi, rax
-      mov       rdi, QWORD [rbp - 24]
-      mov       rdi, QWORD [rdi + b_node.object]
+      mov       rbx, QWORD [rbp - 24]
+      mov       rdi, QWORD [rbx + b_node.object]
       mov       rdx, QWORD [rbp - 40]
       call      memmove64 wrt ..plt
 ; if (child->leaf == false) {
@@ -344,8 +399,8 @@ b_borrow_from_prev:
       pop       QWORD [rax]
 ; }
 .child_is_leaf_2:
-; (void)memmove64(&node->object[i - 1L], &sibling->object[sibling->nobj - 1L],
-;     node->tree->o_size);
+;
+; node->object[i - 1] = sibling->object[sibling->n - 1];
       mov       rdi, QWORD [rbp - 32]
       mov       rsi, QWORD [rdi + b_node.nobj]
       dec       rsi
@@ -361,11 +416,17 @@ b_borrow_from_prev:
       call      memmove64 wrt ..plt
 ; child->nobj += 1;
       mov       rdi, QWORD [rbp - 24]
-      inc       QWORD [rdi + b_node.nobj]
+      mov       rax, QWORD [rdi + b_node.nobj]
+      inc       rax
+      mov       QWORD [rdi + b_node.nobj], rax
 ; sibling->nobj -= 1;
       mov       rdi, QWORD [rbp - 32]
-      dec       QWORD [rdi + b_node.nobj]
+      mov       rax, QWORD [rdi + b_node.nobj]
+      dec       rax
+      mov       QWORD [rdi + b_node.nobj], rax
+; epilogue
       pop       r12
+      pop       rbx
       mov       rsp, rbp
       pop       rbp
       ret
@@ -499,7 +560,7 @@ b_delete:
       mov       rax, QWORD [rbp - 32]
       cmp       rax, QWORD [rdi + b_node.nobj]
       jbe       .else_3
-;     b_delete(node->child[i - 1L], key);
+;     b_delete(node->child[i - 1], key);
       dec       rax
       mov       rsi, rax
       call      b_child_at
@@ -537,24 +598,29 @@ b_delete:
 ;
 ;   QWORD [rbp - 8]   = rdi (node)
 ;   QWORD [rbp - 16]  = rsi (i)
+;   QWORD [rbp - 24]  = (size_t o_size)
 ;-------------------------------------------------------------------------------
 ;
       static b_delete_from_leaf
 b_delete_from_leaf:
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 16
-      push      r12
+      sub       rsp, 24
+      push      rbx
 ; QWORD [rbp - 8] = rdi (node)
       mov       QWORD [rbp - 8], rdi
 ; QWORD [rbp - 16] = rsi (i)
       mov       QWORD [rbp - 16], rsi
+;   QWORD [rbp - 24]  = (size_t o_size)
+      mov       rbx, QWORD [rdi + b_node.tree]
+      mov       rax, QWORD [rbx + b_tree.o_size]
+      mov       QWORD [rbp - 24], rax
 ; BEGIN PRINTF
 ; printf(fmt, hdr04);
       xor       rax, rax
       mov       rdi, fmt
       mov       rsi, hdr04
-      ALIGN_STACK_AND_CALL r12, printf, wrt, ..plt
+      ALIGN_STACK_AND_CALL rbx, printf, wrt, ..plt
       mov       rdi, QWORD [rbp - 8]
       mov       rsi, QWORD [rbp - 16]
 ; END PRINTF
@@ -564,32 +630,32 @@ b_delete_from_leaf:
       mov       rax, QWORD [rdi + b_node.tree]
       mov       rcx, QWORD [rax + b_tree.o_del_cb]
       pop       rdi
-      ALIGN_STACK_AND_CALL r12, rcx
-; (void)memmove64(&node->object[i], &node->object[i + 1L],
-;     ((node->nobj - (i + 1L)) * node->tree->o_size));
-      mov       rcx, QWORD [rbp - 16]
-      inc       rcx
+      ALIGN_STACK_AND_CALL rbx, rcx
+; for (int x = i + 1; x < node->nobj; ++x) {
+      mov       rbx, QWORD [rbp - 16]
+.shift_object_loop:
       mov       rdi, QWORD [rbp - 8]
-      mov       rax, QWORD [rdi + b_node.nobj]
-      sub       rax, rcx
-      mov       rsi, QWORD [rdi + b_node.tree]
-      mul       QWORD [rsi + b_tree.o_size]
-      push      rax
-      mov       rsi, QWORD [rbp - 16]
-      inc       rsi
+      inc       rbx
+      cmp       rbx, QWORD [rdi + b_node.nobj]
+      jae       .shift_object_break
+;   node->object[x - 1] = node->object[x];
+      mov       rsi, rbx 
       call      b_object_at
       push      rax
       dec       rsi
       call      b_object_at
       mov       rdi, rax
       pop       rsi
-      pop       rdx
+      mov       rdx, QWORD [rbp - 24]
       call      memmove64 wrt ..plt
+      jmp       .shift_object_loop
+; }
+.shift_object_break:
 ; node->nobj -= 1;
       mov       rdi, QWORD [rbp - 8]
       dec       QWORD [rdi + b_node.nobj]
 ; epilogue
-      pop       r12
+      pop       rbx
       mov       rsp, rbp
       pop       rbp
       ret
@@ -627,6 +693,7 @@ b_delete_from_non_leaf:
       mov       rcx, QWORD [rdi + b_node.tree]
       mov       rax, QWORD [rcx + b_tree.o_size]
       sub       rsp, rax
+      push      rbx
       push      r15
 ; QWORD [rbp - 8] = rdi (node)
       mov       QWORD [rbp - 8], rdi
@@ -643,20 +710,22 @@ b_delete_from_non_leaf:
 ; END PRINTF
 ; b_node_t *child = node->child[i];
       call      b_child_at
-      mov       rcx, QWORD [rax]
-      mov       QWORD [rbp - 24], rcx
-; b_node_t *sibling = node->child[i + 1L];
+      mov       rbx, QWORD [rax]
+      mov       QWORD [rbp - 24], rbx
+; b_node_t *sibling = node->child[i + 1];
       inc       rsi
       call      b_child_at
-      mov       rcx, QWORD [rax]
-      mov       QWORD [rbp - 32], rcx
+      mov       rbx, QWORD [rax]
+      mov       QWORD [rbp - 32], rbx
 ; size_t o_size = node->tree->o_size;
-      mov       rcx, QWORD [rdi + b_node.tree]
-      mov       rax, QWORD [rcx + b_tree.o_size]
+      mov       rbx, QWORD [rdi + b_node.tree]
+      mov       rax, QWORD [rbx + b_tree.o_size]
       mov       QWORD [rbp - 40], rax
 ; size_t mindeg = node->tree->mindeg;
-      mov       rax, QWORD [rcx + b_tree.mindeg]
+      mov       rax, QWORD [rbx + b_tree.mindeg]
       mov       QWORD [rbp - 48], rax
+; object_t object = node->object[i];
+;
 ; (void)memmove64(&object, &((object_t *)node->object)[i], node->tree->o_size);
       mov       rsi, QWORD [rbp - 16]
       call      b_object_at
@@ -696,7 +765,6 @@ b_delete_from_non_leaf:
       ALIGN_STACK_AND_CALL r15, rcx
       mov       rsi, rax
       mov       rdi, QWORD [rbp - 24]
-;     ALIGN_STACK_AND_CALL r15, b_delete, wrt, ..plt
       call      b_delete
       jmp       .epilogue
 ; } else if (sibling->nobj >= node->tree->mindeg) {
@@ -732,7 +800,6 @@ b_delete_from_non_leaf:
       ALIGN_STACK_AND_CALL r15, rcx
       mov       rsi, rax
       mov       rdi, QWORD [rbp - 32]
-;     ALIGN_STACK_AND_CALL r15, b_delete, wrt, ..plt
       call      b_delete
       jmp       .epilogue
 ; }
@@ -750,11 +817,11 @@ b_delete_from_non_leaf:
       ALIGN_STACK_AND_CALL r15, rcx
       mov       rsi, rax
       mov       rdi, QWORD [rbp - 24]
-;     ALIGN_STACK_AND_CALL r15, b_delete, wrt, ..plt
       call      b_delete
 ; }
 .epilogue:
       pop       r15
+      pop       rbx
       mov       rsp, rbp
       pop       rbp
       ret
@@ -782,7 +849,7 @@ b_fill:
       push      rbp
       mov       rbp, rsp
       sub       rsp, 24
-      push      r15
+      push      rbx
 ; QWORD [rbp - 8] = rdi (node)
       mov       QWORD [rbp - 8], rdi
 ; QWORD [rbp - 16] = rsi (i)
@@ -792,15 +859,15 @@ b_fill:
       xor       rax, rax
       mov       rdi, fmt
       mov       rsi, hdr06
-      ALIGN_STACK_AND_CALL r15, printf, wrt, ..plt
+      ALIGN_STACK_AND_CALL rbx, printf, wrt, ..plt
       mov       rdi, QWORD [rbp - 8]
       mov       rsi, QWORD [rbp - 16]
 ; END PRINTF
 ; size_t mindeg = node->tree->mindeg;
-      mov       rcx, QWORD [rdi + b_node.tree]
-      mov       rax, QWORD [rcx + b_tree.mindeg]
+      mov       rbx, QWORD [rdi + b_node.tree]
+      mov       rax, QWORD [rbx + b_tree.mindeg]
       mov       QWORD [rbp - 24], rax
-; if (i != 0L && node->child[i - 1L]->nobj >= node->tree->mindeg) {
+; if (i != 0 && node->child[i - 1]->nobj >= node->tree->mindeg) {
       test      rsi, rsi
       jz        .else_if
       dec       rsi
@@ -815,7 +882,7 @@ b_fill:
       call      b_borrow_from_prev
       jmp       .epilogue
 ; } else if (i != node->nobj &&
-;           node->child[i + 1L]->nobj >= node->tree->mindeg) {
+;           node->child[i + 1]->nobj >= node->tree->mindeg) {
 .else_if:
       mov       rdi, QWORD [rbp - 8]
       mov       rsi, QWORD [rbp - 16]
@@ -841,18 +908,18 @@ b_fill:
       cmp       rsi, QWORD [rdi + b_node.nobj]
       je        .else_2
 ;     b_merge(node, i);
-;     ALIGN_STACK_AND_CALL r15, b_merge, wrt, ..plt
+;     ALIGN_STACK_AND_CALL rbx, b_merge, wrt, ..plt
       call      b_merge
       jmp       .epilogue
 .else_2:
 ;   else
-;     b_merge(node, i - 1L);
+;     b_merge(node, i - 1);
       dec       rsi
-;     ALIGN_STACK_AND_CALL r15, b_merge, wrt, ..plt
+;     ALIGN_STACK_AND_CALL rbx, b_merge, wrt, ..plt
       call      b_merge
 ; }
 .epilogue:
-      pop       r15;
+      pop       rbx;
       mov       rsp, rbp
       pop       rbp
       ret
@@ -899,7 +966,6 @@ b_find_key:
 ; if (node->nobj <= 9) return b_hunt_key(node, key, cond);
       cmp       QWORD [rdi + b_node.nobj], HUNT_MAX
       ja        .no_hunting
-;     ALIGN_STACK_AND_CALL r13, b_hunt_key, wrt, ..plt
       call      b_hunt_key
       jmp       .epilogue
 .no_hunting:
@@ -917,23 +983,23 @@ b_find_key:
       mov       rax, QWORD [rdi + b_node.tree]
       mov       rax, QWORD [rax + b_tree.k_cmp_cb]
       mov       QWORD [rbp - 32], rax
-; ssize_t lo = 0L;
+; ssize_t lo = 0;
       xor       rax, rax
       mov       QWORD [rbp - 40], rax
 ; size_t alt_mid = node->nobj;
       mov       rax, QWORD [rdi + b_node.nobj]
       mov       QWORD [rbp - 64], rax
-; ssize_t hi = node->nobj - 1L;
+; ssize_t hi = node->nobj - 1;
       dec       rax
       mov       QWORD [rbp - 48], rax
 ; while (lo <= hi) {
 .loop:
       cmp       QWORD [rbp - 40], rax
       jg        .break
-;   size_t mid = (lo + hi) / 2L;
+;   size_t mid = (lo + hi) / 2;
+      xor       rdx, rdx
       add       rax, QWORD [rbp - 40]
       mov       rcx, 2
-      xor       rdx, rdx
       div       rcx
       mov       QWORD [rbp - 56], rax
 ;   *cond = node->tree->k_cmp_cb(key, &node->object[mid]);
@@ -957,11 +1023,11 @@ b_find_key:
 ;     alt_mid = mid;
       mov       rax, QWORD [rbp - 56]
       mov       QWORD [rbp - 64], rax
-;     hi = mid - 1L;
+;     hi = mid - 1;
       dec       rax
       mov       QWORD [rbp - 48], rax
       jmp       .cont
-;   } else lo = mid + 1L;
+;   } else lo = mid + 1;
 .else:
       mov       rax, QWORD [rbp - 56]
       inc       rax
@@ -1028,7 +1094,7 @@ b_hunt_key:
       mov       rsi, QWORD [rdi + b_node.tree]
       mov       rax, QWORD [rsi + b_tree.k_cmp_cb]
       mov       QWORD [rbp - 32], rax
-; size_t i = 0L;
+; size_t i = 0;
       xor       rax, rax
       mov       QWORD [rbp - 40], rax
 ; while (i < node->nobj &&
@@ -1118,7 +1184,7 @@ b_insert:
       mov       rdi, QWORD [rdi + b_tree.root]
       mov       rdi, QWORD [rdi + b_node.object]
       call      memmove64 wrt ..plt
-;   tree->root->nobj = 1L;
+;   tree->root->nobj = 1;
       mov       rax, 1
       mov       rdi, QWORD [rbp - 8]
       mov       rsi, QWORD [rdi + b_tree.root]
@@ -1144,19 +1210,19 @@ b_insert:
       mov       rsi, QWORD [rbp - 8]
       mov       rdi, rax
       call      b_node_init
-;     root->child[0L] = tree->root;
+;     root->child[0] = tree->root;
       mov       rdi, QWORD [rbp - 8]
       mov       rax, QWORD [rdi + b_tree.root]
       mov       rdi, QWORD [rbp - 24]
       mov       rsi, QWORD [rdi + b_node.child]
       mov       QWORD [rsi], rax
-;     b_split_child(root, 0L, tree->root);
+;     b_split_child(root, 0, tree->root);
       mov       rdi, QWORD [rbp - 8]
       mov       rdx, QWORD [rdi + b_tree.root]
       xor       rsi, rsi
       mov       rdi, QWORD [rbp - 24]
       call      b_split_child
-;     size_t i = 0L;
+;     size_t i = 0;
       xor       rax, rax
       mov       QWORD [rbp - 32], rax
 ;     if (tree->o_cmp_cb(root->object, object) < 0)
@@ -1220,8 +1286,9 @@ b_insert_non_full:
 ; prologue
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 32
-      push      r13
+      sub       rsp, 40
+      push      rbx
+      push      r12
 ; QWORD [rbp - 8] = rdi (node)
       mov       QWORD [rbp - 8], rdi
 ; QWORD [rbp - 16] = rsi (object)
@@ -1232,14 +1299,15 @@ b_insert_non_full:
       mov       rdi, fmt
       mov       rsi, hdr10
       ALIGN_STACK_AND_CALL r12, printf, wrt, ..plt
+      mov       rdi, QWORD [rbp - 8]
+      mov       rsi, QWORD [rbp - 16]
 ; END PRINTF
 ; b_compare_cb o_cmp_cb = node->tree->o_cmp_cb
-      mov       rdi, QWORD [rbp - 8]
-      mov       rsi, QWORD [rdi + b_node.tree]
-      mov       rax, QWORD [rsi + b_tree.o_cmp_cb]
+      mov       rbx, QWORD [rdi + b_node.tree]
+      mov       rax, QWORD [rbx + b_tree.o_cmp_cb]
       mov       QWORD [rbp - 32], rax
 ; size_t o_size = node->tree->o_size;
-      mov       rax, QWORD [rsi + b_tree.o_size]
+      mov       rax, QWORD [rbx + b_tree.o_size]
       mov       QWORD [rbp - 40], rax
 ; ssize_t i = node->nobj -1 ;
       mov       rax, QWORD [rdi + b_node.nobj]
@@ -1249,23 +1317,23 @@ b_insert_non_full:
       movzx     eax, BYTE [rdi + b_node.leaf]
       test      eax, eax
       jz        .else
-;   for (; i >= 0L && node->tree->o_cmp_cb(&node->object[i], object) > 0; --i)
+;   for (; i >= 0 && node->tree->o_cmp_cb(&node->object[i], object) > 0; --i) {
+      mov       rbx, QWORD [rbp - 24]
 .object_move_loop:
-      mov       rax, QWORD [rbp - 24]
-      cmp       rax, 0
+      cmp       rbx, 0
       jl        .object_move_break
       mov       rdi, QWORD [rbp - 8]
-      mov       rsi, rax
+      mov       rsi, rbx
       call      b_object_at
       mov       rdi, rax
       mov       rsi, QWORD [rbp - 16]
       mov       rcx, QWORD [rbp - 32]
-      ALIGN_STACK_AND_CALL r13, rcx
+      ALIGN_STACK_AND_CALL r12, rcx
       cmp       eax, 0
       jle       .object_move_break
-;     node->object[i + 1L] = node->object[i];
+;     node->object[i + 1] = node->object[i];
       mov       rdi, QWORD [rbp - 8]
-      mov       rsi, QWORD [rbp - 24]
+      mov       rsi, rbx
       call      b_object_at
       push      rax
       inc       rsi
@@ -1274,10 +1342,21 @@ b_insert_non_full:
       pop       rsi
       mov       rdx, QWORD [rbp - 40]
       call      memmove64 wrt ..plt
-      dec       QWORD [rbp - 24]
+;   if ((x % 8) == 0) sched_yield();
+      xor       rdx, rdx
+      mov       rax, rbx
+      mov       rcx, DIVISOR
+      div       rcx 
+      test      rdx, rdx
+      jnz       .cont_01
+      ALIGN_STACK_AND_CALL r12, sched_yield, wrt, ..plt
+.cont_01:
+;   --i;
+      dec       rbx
+      mov       QWORD [rbp - 24], rbx
       jmp       .object_move_loop
 .object_move_break:
-;   (void)memmove64(node->object[i + 1L], object, node->tree->o_size);
+;   (void)memmove64(node->object[i + 1], object, node->tree->o_size);
       mov       rdi, QWORD [rbp - 8]
       mov       rsi, QWORD [rbp - 24]
       inc       rsi
@@ -1286,36 +1365,48 @@ b_insert_non_full:
       mov       rsi, QWORD [rbp - 16]
       mov       rdx, QWORD [rbp - 40]
       call      memmove64 wrt ..plt
-;   node->nobj += 1L;
+;   node->nobj += 1;
       mov       rdi, QWORD [rbp - 8]
-      inc       QWORD [rdi + b_node.nobj]
+      mov       rax, QWORD [rdi + b_node.nobj]
+      inc       rax
+      mov       QWORD [rdi + b_node.nobj], rax
       jmp       .epilogue
 ; } else {
 .else:
-;   while (i >= 0L && node->tree->o_cmp_cb(&node->object[i], object) > 0)
+;   while (i >= 0 && node->tree->o_cmp_cb(&node->object[i], object) > 0)
 .child_find_loop:
-      mov       rax, QWORD [rbp - 24]
-      cmp       rax, 0
+      mov       rbx, QWORD [rbp - 24]
+      cmp       rbx, 0
       jl        .child_find_break
       mov       rdi, QWORD [rbp - 8]
-      mov       rsi, rax
+      mov       rsi, rbx
       call      b_object_at
       mov       rdi, rax
       mov       rsi, QWORD [rbp - 16]
       mov       rcx, QWORD [rbp - 32]
-      ALIGN_STACK_AND_CALL r13, rcx
+      ALIGN_STACK_AND_CALL r12, rcx
       cmp       eax, 0
       jle       .child_find_break
-;     i--;
-      dec       QWORD [rbp - 24]
+;   if ((x % 8) == 0) sched_yield();
+      xor       rdx, rdx
+      mov       rax, rbx
+      mov       rcx, DIVISOR
+      div       rcx 
+      test      rdx, rdx
+      jnz       .cont_02
+      ALIGN_STACK_AND_CALL r12, sched_yield, wrt, ..plt
+.cont_02:
+;     --i;
+      dec       rbx
+      mov       QWORD [rbp - 24], rbx
       jmp       .child_find_loop
 .child_find_break:
-;   if (node->child[i + 1L]->nobj == node->tree->mindeg * 2L - 1L) {
+;   if (node->child[i + 1]->nobj == node->tree->mindeg * 2 - 1) {
       mov       rdi, QWORD [rbp - 8]
-      mov       rsi, QWORD [rdi + b_node.tree]
-      mov       rax, QWORD [rsi + b_tree.mindeg]
-      mov       rcx, 2
-      mul       rcx
+      mov       rbx, QWORD [rdi + b_node.tree]
+      mov       rax, QWORD [rbx + b_tree.mindeg]
+      mov       rbx, 2
+      mul       rbx
       dec       rax
       push      rax
       mov       rsi, QWORD [rbp - 24]
@@ -1323,17 +1414,17 @@ b_insert_non_full:
       call      b_child_at
       mov       rsi, QWORD [rax]
       mov       rax, QWORD [rsi + b_node.nobj]
-      pop       rcx
-      cmp       rax, rcx
+      pop       rbx
+      cmp       rax, rbx
       jne       .end_if
-;     b_split_child(node, (i + 1L), node->child[i + 1L]);
+;     b_split_child(node, (i + 1), node->child[i + 1]);
       mov       rdi, QWORD [rbp - 8]
       mov       rsi, QWORD [rbp - 24]
       inc       rsi
       call      b_child_at
       mov       rdx, QWORD [rax]
       call      b_split_child
-;     if (node->tree->o_cmp_cb(&node->object)[i + 1L], object) < 0)
+;     if (node->tree->o_cmp_cb(&node->object)[i + 1], object) < 0)
       mov       rdi, QWORD [rbp - 8]
       mov       rsi, QWORD [rbp - 24]
       inc       rsi
@@ -1341,7 +1432,7 @@ b_insert_non_full:
       mov       rdi, rax
       mov       rsi, QWORD [rbp - 16]
       mov       rcx, QWORD [rbp - 32]
-      ALIGN_STACK_AND_CALL r13, rcx
+      ALIGN_STACK_AND_CALL r12, rcx
       cmp       eax, 0
       jge       .skip_inc
 ;       i++;
@@ -1349,7 +1440,7 @@ b_insert_non_full:
 .skip_inc:
 ;   }
 .end_if:
-;   b_insert_non_full(node->child[i + 1L], object);
+;   b_insert_non_full(node->child[i + 1], object);
       mov       rdi, QWORD [rbp - 8]
       mov       rsi, QWORD [rbp - 24]
       inc       rsi
@@ -1359,7 +1450,8 @@ b_insert_non_full:
       call      b_insert_non_full
 ; }
 .epilogue:
-      pop       r13
+      pop       r12
+      pop       rbx
       mov       rsp, rbp
       pop       rbp
       ret
@@ -1389,7 +1481,8 @@ b_merge:
       push      rbp
       mov       rbp, rsp
       sub       rsp, 48
-      push      r14
+      push      rbx
+      push      r12
 ; QWORD [rbp - 8] = rdi (node)
       mov       QWORD [rbp - 8], rdi
 ; QWORD [rbp - 16] = rsi (i)
@@ -1399,27 +1492,30 @@ b_merge:
       xor       rax, rax
       mov       rdi, fmt
       mov       rsi, hdr11
-      ALIGN_STACK_AND_CALL r14, printf, wrt, ..plt
+      ALIGN_STACK_AND_CALL r12, printf, wrt, ..plt
       mov       rdi, QWORD [rbp - 8]
       mov       rsi, QWORD [rbp - 16]
 ; END PRINTF
 ; b_node_t *child = node->child[i];
       call      b_child_at
-      mov       rcx, QWORD [rax]
-      mov       QWORD [rbp - 24], rcx
-; b_node_t *sibling = node->child[i + 1L];
+      mov       rbx, QWORD [rax]
+      mov       QWORD [rbp - 24], rbx
+; b_node_t *sibling = node->child[i + 1];
       inc       rsi
       call      b_child_at
-      mov       rcx, QWORD [rax]
-      mov       QWORD [rbp - 32], rcx
+      mov       rbx, QWORD [rax]
+      mov       QWORD [rbp - 32], rbx
 ; size_t o_size = node->tree->o_size;
-      mov       rcx, QWORD [rdi + b_node.tree]
-      mov       rax, QWORD [rcx + b_tree.o_size]
+      mov       rbx, QWORD [rdi + b_node.tree]
+      mov       rax, QWORD [rbx + b_tree.o_size]
       mov       QWORD [rbp - 40], rax
 ; size_t mindeg = node->tree->mindeg;
-      mov       rax, QWORD [rcx + b_tree.mindeg]
+      mov       rax, QWORD [rbx + b_tree.mindeg]
       mov       QWORD [rbp - 48], rax
-; (void)memmove64(&child->object[node->tree->mindeg - 1L],
+;
+; child->object[mindeg - 1] = node->object[i];
+;
+; (void)memmove64(&child->object[node->tree->mindeg - 1],
 ;     &node->object[i], node->tree->o_size);
       mov       rsi, QWORD [rbp - 16]
       call      b_object_at
@@ -1432,105 +1528,152 @@ b_merge:
       pop       rsi
       mov       rdx, QWORD [rbp - 40]
       call      memmove64 wrt ..plt
-; (void)memmove64(&child->object[node->tree->mindeg], sibling->object,
-;     (sibling->nobj * node->tree->o_size));
-      mov       rdi, QWORD [rbp - 24]
-      mov       rsi, QWORD [rbp - 48]
+;
+; for (size_t x = 0; x < sibling->nobj; ++x) {
+      xor       rbx, rbx
+.object_move_loop:
+      mov       rdi, QWORD [rbp - 32]
+      cmp       rbx, QWORD [rdi + b_node.nobj]
+      jae       .object_move_break
+;   child->object[x + mindeg] = sibling->object[x]
+      mov       rsi, rbx
       call      b_object_at
       push      rax
-      mov       rdi, QWORD [rbp - 32]
-      mov       rsi, QWORD [rdi + b_node.object]
-      mov       rax, QWORD [rdi + b_node.nobj]
-      mul       QWORD [rbp - 40]
-      mov       rdx, rax
-      pop       rdi
+      mov       rdi, QWORD [rbp - 24]
+      add       rsi, QWORD [rbp - 48]
+      call      b_object_at
+      mov       rdi, rax
+      pop       rsi
+      mov       rdx, QWORD [rbp - 40]
       call      memmove64 wrt ..plt
+;   if ((x % 8) == 0) sched_yield();
+      xor       rdx, rdx
+      mov       rax, rbx
+      mov       rcx, DIVISOR
+      div       rcx 
+      test      rdx, rdx
+      jnz       .cont_01
+      ALIGN_STACK_AND_CALL r12, sched_yield, wrt, ..plt
+.cont_01:
+      inc       rbx
+      jmp       .object_move_loop
+; }
+;
+.object_move_break:
 ; if (child->leaf == false) {
       mov       rdi, QWORD [rbp - 24]
       movzx     eax, BYTE [rdi + b_node.leaf]
       test      eax, eax
       jnz       .child_is_leaf
-;   (void)memmove64(&child->child[node->tree->mindeg], sibling->child,
-;       ((sibling->nobj + 1) * sizeof(b_node_t *)));
-      mov       rdi, QWORD [rbp - 24]
-      mov       rsi, QWORD [rbp - 48]
-      call      b_child_at
-      push      rax
+;   for (size_t x = 0; x <= sibling->nobj; ++x) {
+      xor       rbx, rbx
+.child_move_loop:
       mov       rdi, QWORD [rbp - 32]
-      mov       rsi, QWORD [rdi + b_node.child]
-      mov       rax, QWORD [rdi + b_node.nobj]
-      inc       rax
-      mov       rcx, QW_SIZE
-      mul       rcx
-      mov       rdx, rax
-      pop       rdi
-      call      memmove64 wrt ..plt
+      cmp       rbx, QWORD [rdi + b_node.nobj]
+      ja        .child_move_break
+;     child->child[x + mindeg] = sibling->child[x];
+      mov       rsi, rbx
+      call      b_child_at
+      push      QWORD [rax]
+      mov       rdi, QWORD [rbp - 24]
+      add       rsi, QWORD [rbp - 48]
+      call      b_child_at
+      pop       QWORD [rax]
+;   if ((x % 8) == 0) sched_yield();
+      xor       rdx, rdx
+      mov       rax, rbx
+      mov       rcx, DIVISOR
+      div       rcx 
+      test      rdx, rdx
+      jnz       .cont_02
+      ALIGN_STACK_AND_CALL r12, sched_yield, wrt, ..plt
+.cont_02:
+      inc       rbx
+      jmp       .child_move_loop
+;   }
+.child_move_break:
 ; }
 .child_is_leaf:
-; if ((i + 1L) < node->nobj) {
+;
+; for (size_t x = i + 1; x < node->nobj; ++x) {
+      mov       rbx, QWORD [rbp - 16]
+      inc       rbx
+.object_move_loop_2:
       mov       rdi, QWORD [rbp - 8]
-      mov       rsi, QWORD [rbp - 16]
-      inc       rsi
-      cmp       rsi, QWORD [rdi + b_node.nobj]
-      jae       .end_if
-;   (void)memmove64(&node->object[i], &node->object[i + 1L],
-;       ((node->nobj - (i + 1L)) * node->tree->o_size));
-      mov       rax, QWORD [rdi + b_node.nobj]
-      sub       rax, rsi
-      mul       QWORD [rbp - 40]
-      push      rax
+      cmp       rbx, QWORD [rdi + b_node.nobj]
+      jae       .object_move_break_2
+;   node->object[x - 1] = node->object[x];
+      mov       rsi, rbx
       call      b_object_at
       push      rax
       dec       rsi
       call      b_object_at
       mov       rdi, rax
       pop       rsi
-      pop       rdx
+      mov       rdx, QWORD [rbp - 40]
       call      memmove64 wrt ..plt
+;   if ((x % 8) == 0) sched_yield();
+      xor       rdx, rdx
+      mov       rax, rbx
+      mov       rcx, DIVISOR
+      div       rcx
+      test      rdx, rdx
+      jnz       .cont_03
+      ALIGN_STACK_AND_CALL r12, sched_yield, wrt, ..plt
+.cont_03:
+      inc       rbx
+      jmp       .object_move_loop_2
+.object_move_break_2:
 ; }
-.end_if:
-; if ((i + 2L) <= node->nobj) {
+;
+; for (size_t x = i + 2; x <= node->nobj; ++x) {
+      mov       rbx, QWORD [rbp - 16]
+      inc       rbx
+      inc       rbx
+.child_move_loop_2:
       mov       rdi, QWORD [rbp - 8]
-      mov       rsi, QWORD [rbp - 16]
-      inc       rsi
-      inc       rsi
-      cmp       rsi, QWORD [rdi + b_node.nobj]
-      ja        .end_if_2
-;   (void)memmove64(&node->child[i + 1L], &node->child[i + 2L],
-;       ((node->nobj - (i + 1L)) * sizeof(b_node_t *)));
-      mov       rax, QWORD [rdi + b_node.nobj]
-      sub       rax, rsi  ; subtracting (i + 2L), so increment rax next
-      inc       rax       ; increment rax to adjust to (node->nobj - (i + 1L))
-      mov       rcx, QW_SIZE
-      mul       rcx
-      push      rax
+      cmp       rbx, QWORD [rdi + b_node.nobj]
+      ja        .child_move_break_2
+;   node->child[x - 1] = node->child[x];
+      mov       rsi, rbx
       call      b_child_at
-      push      rax
+      push      QWORD [rax]
       dec       rsi
       call      b_child_at
-      mov       rdi, rax
-      pop       rsi
-      pop       rdx
-      call      memmove64 wrt ..plt
+      pop       QWORD [rax]
+;   if ((x % 8) == 0) sched_yield();
+      xor       rdx, rdx
+      mov       rax, rbx
+      mov       rcx, DIVISOR
+      div       rcx
+      test      rdx, rdx
+      jnz       .cont_04
+      ALIGN_STACK_AND_CALL r12, sched_yield, wrt, ..plt
+.cont_04:
+      inc       rbx
+      jmp       .child_move_loop_2
 ; }
-.end_if_2:
-; child->nobj += sibling->nobj + 1L;
+.child_move_break_2:
+; child->nobj += sibling->nobj + 1;
       mov       rdi, QWORD [rbp - 32]
       mov       rax, QWORD [rdi + b_node.nobj]
       inc       rax
       mov       rdi, QWORD [rbp - 24]
       add       QWORD [rdi + b_node.nobj], rax
-; node->nobj -= 1L;
+; node->nobj -= 1;
       mov       rdi, QWORD [rbp - 8]
-      dec       QWORD [rdi + b_node.nobj]
+      mov       rax, QWORD [rdi + b_node.nobj]
+      dec       rax
+      mov       QWORD [rdi + b_node.nobj], rax
 ; b_node_term(sibling);
       mov       rdi, QWORD [rbp - 32]
       call      b_node_term
 ; b_node_free(sibling);
       mov       rdi, QWORD [rbp - 32]
-      ALIGN_STACK_AND_CALL r14, free, wrt, ..plt
+      ALIGN_STACK_AND_CALL r12, free, wrt, ..plt
 ; epilogue
-      pop       r14
+      pop       r12
+      pop       rbx
       mov       rsp, rbp
       pop       rbp
       ret
@@ -1548,14 +1691,14 @@ b_merge:
 ;
       static b_next_object
 b_next_object:
-; b_node_t *nc = nn->child[i + 1L]
+; b_node_t *nc = nn->child[i + 1]
       mov       rax, rsi
       inc       rax
       mov       rcx, QW_SIZE
       mul       rcx
       add       rax, QWORD [rdi + b_node.child]
       mov       rdi, QWORD [rax]
-; while (nc->leaf == false) nc = nc->child[0L]
+; while (nc->leaf == false) nc = nc->child[0]
 .loop:
       movzx     ecx, BYTE [rdi + b_node.leaf]
       test      ecx, ecx
@@ -1610,14 +1753,14 @@ b_node_init:
 ; END PRINTF
 ; node->leaf = leaf
       mov       BYTE [rdi + b_node.leaf], dl
-; node->nobj = 0L
+; node->nobj = 0
       xor       rax, rax
       mov       QWORD [rdi + b_node.nobj], rax
 ; node->tree = tree
       mov       QWORD [rdi + b_node.tree], rsi
-; size_t max_child = 0L
+; size_t max_child = 0
       mov       QWORD [rbp - 16], rax
-; if (leaf == false) max_child = tree->mindeg * 2L
+; if (leaf == false) max_child = tree->mindeg * 2
       test      edx, edx
       jnz       .leaf_node
       mov       rax, QWORD [rsi + b_tree.mindeg]
@@ -1625,7 +1768,7 @@ b_node_init:
       mul       rcx
       mov       QWORD [rbp - 16], rax
 .leaf_node:
-; max_object = tree->mindeg * 2L - 1L
+; max_object = tree->mindeg * 2 - 1
       mov       rax, QWORD [rsi + b_tree.mindeg]
       mov       rcx, QWORD 2
       mul       rcx
@@ -1644,7 +1787,7 @@ b_node_init:
 ; node->child = NULL
       xor       rax, rax
       mov       QWORD [rdi + b_node.child], rax
-; node->object = calloc(1L, bufsize)
+; node->object = calloc(1, bufsize)
       mov       rsi, QWORD [rbp - 32]
       mov       rdi, 1
       ALIGN_STACK_AND_CALL r15, calloc, wrt, ..plt
@@ -1760,7 +1903,6 @@ b_object_at:
 ;-------------------------------------------------------------------------------
 ;
       static b_prev_object
-;     static b_prev_object
 b_prev_object:
 ; b_node_t *nc = nn->child[i];
       mov       rax, rsi
@@ -1780,7 +1922,7 @@ b_prev_object:
       mov       rdi, QWORD [rax]
       jmp       .loop
 .leaf_node:
-; return &nc->object[nc->nobj - 1L]
+; return &nc->object[nc->nobj - 1]
       mov       rax, QWORD [rdi + b_node.nobj]
       dec       rax
       mov       rcx, QWORD [rdi + b_node.tree]
@@ -1833,7 +1975,7 @@ b_remove:
 ; b_delete(tree->root, key);
       mov       rdi, rax
       call      b_delete
-; if (tree->root->nobj == 0L) {
+; if (tree->root->nobj == 0) {
       xor       rax, rax
       mov       rdi, QWORD [rbp - 8]
       mov       rsi, QWORD [rdi + b_tree.root]
@@ -1983,7 +2125,6 @@ b_search:
 ;   QWORD [rbp - 32]  = (node_z)
 ;   QWORD [rbp - 40]  = (size_t o_size)
 ;   QWORD [rbp - 48]  = (size_t mindeg)
-;   QWORD [rbp - 56]  = (ssize_t x)
 ;-------------------------------------------------------------------------------
 ;
       static b_split_child
@@ -1991,7 +2132,8 @@ b_split_child:
 ; prologue
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 56
+      sub       rsp, 48
+      push      rbx
       push      r12
 ; QWORD [rbp - 8] = rdi (node)
       mov       QWORD [rbp - 8], rdi
@@ -2018,95 +2160,138 @@ b_split_child:
       mov       rsi, b_node_size
       ALIGN_STACK_AND_CALL r12, calloc, wrt, ..plt
       mov       QWORD [rbp - 32], rax
-; b_node_init(node_z, node_y->tree, node_y->leaf);
+; b_node_init(node_z, node->tree, node_y->leaf);
       mov       rdi, QWORD [rbp - 24]
       movzx     edx, BYTE [rdi + b_node.leaf]
       mov       rsi, QWORD [rdi + b_node.tree]
       mov       rdi, QWORD [rbp - 32]
       call      b_node_init
-; node_z->nobj = node->tree->mindeg - 1L;
+; node_z->nobj = node->tree->mindeg - 1;
       mov       rax, QWORD [rbp - 48]
       dec       rax
       mov       rdi, QWORD [rbp - 32]
       mov       QWORD [rdi + b_node.nobj], rax
-; (void)memmove64(node_z->object, &node_y->object[node->tree->mindeg],
-;     ((node->tree->mindeg - 1) *node->tree->o_size));
+; for (size_t x = 0; x < node->tree->mindeg - 1; ++x) {
+      xor       rbx, rbx;
+.object_move_loop:
       mov       rax, QWORD [rbp - 48]
       dec       rax
-      mul       QWORD [rbp - 40]
-      push      rax
-      mov       rdi, QWORD [rbp - 24]
-      mov       rsi, QWORD [rbp - 48]
-      call      b_object_at
+      cmp       rbx, rax
+      jae       .object_move_break
+;   node_z->object[x] = node_y->object[x + node->tree->mindeg];
+      mov       rax, rbx
+      add       rax, QWORD [rbp - 48]
       mov       rsi, rax
+      mov       rdi, QWORD [rbp - 24]
+      call      b_object_at
+      push      rax
       mov       rdi, QWORD [rbp - 32]
-      mov       rdi, QWORD [rdi + b_node.object]
-      pop       rdx
+      mov       rsi, rbx
+      call      b_object_at
+      mov       rdi, rax
+      pop       rsi
+      mov       rdx, QWORD [rbp - 40]
       call      memmove64 wrt ..plt
+;   if ((x % 8) == 0) sched_yield();
+      xor       rdx, rdx
+      mov       rax, rbx
+      mov       rcx, DIVISOR
+      div       rcx 
+      test      rdx, rdx
+      jnz       .cont_01
+      ALIGN_STACK_AND_CALL r12, sched_yield, wrt, ..plt
+.cont_01:
+      inc       rbx
+      jmp       .object_move_loop
+; }
+.object_move_break:
 ; if (node_y->leaf == false) {
       mov       rdi, QWORD [rbp - 24]
       movzx     eax, BYTE [rdi + b_node.leaf]
       test      eax, eax
-      jnz       .is_leaf
-; (void)memmove64(node_z->child, &node_y->child[node->tree->mindeg],
-;   (node->tree->mindeg * sizeof(b_node_t *)));
-      mov       rax, QW_SIZE
-      mul       QWORD [rbp - 48]
-      push      rax
-      mov       rdi, QWORD [rbp - 24]
-      mov       rsi, QWORD [rbp - 48]
-      call      b_child_at
+      jnz       .node_y_is_leaf
+;   for (size_t x = 0; x < node->tree->mindeg; ++x) {
+      xor       rbx, rbx
+.child_move_loop:
+      cmp       rbx, [rbp - 48]
+      jae       .child_move_break;
+;     node_z->child[x] = node_y->child[x + node->tree->mindeg];
+      mov       rax, rbx
+      add       rax, QWORD [rbp - 48]
       mov       rsi, rax
+      mov       rdi, QWORD [rbp - 24]
+      call      b_child_at
+      push      QWORD [rax]
       mov       rdi, QWORD [rbp - 32]
-      mov       rdi, QWORD [rdi + b_node.child]
-      pop       rdx
-      call      memmove64 wrt ..plt
+      mov       rsi, rbx
+      call      b_child_at
+      pop       QWORD [rax]
+;   if ((x % 8) == 0) sched_yield();
+      xor       rdx, rdx
+      mov       rax, rbx
+      mov       rcx, DIVISOR
+      div       rcx 
+      test      rdx, rdx
+      jnz       .cont_02
+      ALIGN_STACK_AND_CALL r12, sched_yield, wrt, ..plt
+.cont_02:
+      inc       rbx
+      jmp       .child_move_loop
+;   }
+.child_move_break:
 ; }
-.is_leaf:
-; node_y->nobj = node_y->tree->mindeg - 1L;
+.node_y_is_leaf:
+; node_y->nobj = node_y->tree->mindeg - 1;
       mov       rax, QWORD [rbp - 48]
       dec       rax
       mov       rdi, QWORD [rbp - 24]
       mov       QWORD [rdi + b_node.nobj], rax
-; for (ssize_t x = node->nobj; x >= i + 1L; x--)
-;   node->child[x + 1L] = node->child[x];
+; for (ssize_t x = node->nobj; x >= i + 1; x--) {
       mov       rdi, QWORD [rbp - 8]
-      mov       rax, QWORD [rdi + b_node.nobj]
-      mov       QWORD [rbp - 56], rax
-.child_move_loop:
-      mov       rcx, QWORD [rbp - 16]
-      inc       rcx
-      cmp       rax, rcx
-      jl        .child_move_break
-      mov       rsi, rax
+      mov       rbx, QWORD [rdi + b_node.nobj]
+.child_move_loop_2:
+      mov       rax, QWORD [rbp - 16]
+      inc       rax
+      cmp       rbx, rax
+      jl        .child_move_break_2
+;   node->child[x + 1] = node->child[x];
+      mov       rsi, rbx
       call      b_child_at
       push      QWORD [rax]
-      mov       rsi, QWORD [rbp - 56]
+      mov       rsi, rbx
       inc       rsi
       call      b_child_at
       pop       QWORD [rax]
-      dec       QWORD [rbp - 56]
-      mov       rax, QWORD [rbp - 56]
+;   if ((x % 8) == 0) sched_yield();
+      xor       rdx, rdx
+      mov       rax, rbx
+      mov       rcx, DIVISOR
+      div       rcx 
+      test      rdx, rdx
+      jnz       .cont_03
+      ALIGN_STACK_AND_CALL r12, sched_yield, wrt, ..plt
+.cont_03:
       mov       rdi, QWORD [rbp - 8]
-      jmp       .child_move_loop
-.child_move_break:
-; node->child[i + 1L] = node_z;
+      dec       rbx
+      jmp       .child_move_loop_2
+; }
+.child_move_break_2:
+; node->child[i + 1] = node_z;
       mov       rdi, QWORD [rbp - 8]
       mov       rsi, QWORD [rbp - 16]
       inc       rsi
       call      b_child_at
-      mov       rcx, QWORD [rbp - 32]
-      mov       QWORD [rax], rcx
-; for (ssize_t x = node->nobj - 1L; x >= i; x--)
-;   node->object[x + 1L] = node->object[x];
+      mov       rbx, QWORD [rbp - 32]
+      mov       QWORD [rax], rbx
+; for (ssize_t x = node->nobj - 1; x >= i; x--)
       mov       rdi, QWORD [rbp - 8]
-      mov       rax, QWORD [rdi + b_node.nobj]
-      dec       rax
-      mov       QWORD [rbp - 56], rax
-.object_move_loop:
-      cmp       rax, QWORD [rbp - 16]
-      jl        .object_move_break
-      mov       rsi, rax
+      mov       rbx, QWORD [rdi + b_node.nobj]
+      dec       rbx
+.object_move_loop_2:
+      cmp       rbx, QWORD [rbp - 16]
+      jl        .object_move_break_2
+;   node->object[x + 1] = node->object[x];
+      mov       rsi, rbx
       call      b_object_at
       push      rax
       inc       rsi
@@ -2115,16 +2300,25 @@ b_split_child:
       pop       rsi
       mov       rdx, QWORD [rbp - 40]
       call      memmove64 wrt ..plt
-      dec       QWORD [rbp - 56]
-      mov       rax, QWORD [rbp - 56]
+;   if ((x % 8) == 0) sched_yield();
+      xor       rdx, rdx
+      mov       rax, rbx
+      mov       rcx, DIVISOR
+      div       rcx 
+      test      rdx, rdx
+      jnz       .cont_04
+      ALIGN_STACK_AND_CALL r12, sched_yield, wrt, ..plt
+.cont_04:
+      dec       rbx
       mov       rdi, QWORD [rbp - 8]
-      jmp       .object_move_loop
-.object_move_break:
-; (void)memmove64(&node->object[i], &node_y->object[node_y->tree->mindeg - 1L],
+      jmp       .object_move_loop_2
+.object_move_break_2:
+; (void)memmove64(&node->object[i], &node_y->object[node->tree->mindeg - 1],
 ;     node->tree->o_size);
       mov       rdi, QWORD [rbp - 24]
-      mov       rsi, QWORD [rbp - 48]
-      dec       rsi
+      mov       rax, QWORD [rbp - 48]
+      dec       rax
+      mov       rsi, rax
       call      b_object_at
       push      rax
       mov       rdi, QWORD [rbp - 8]
@@ -2134,11 +2328,14 @@ b_split_child:
       pop       rsi
       mov       rdx, QWORD [rbp - 40]
       call      memmove64 wrt ..plt
-; node->nobj += 1L;
+; node->nobj += 1;
       mov       rdi, QWORD [rbp - 8]
-      inc       QWORD [rdi + b_node.nobj]
+      mov       rax, QWORD [rdi + b_node.nobj]
+      inc       rax
+      mov       QWORD [rdi + b_node.nobj], rax
 .epilogue:
       pop       r12
+      pop       rbx
       mov       rsp, rbp
       pop       rbp
       ret
@@ -2146,7 +2343,7 @@ b_split_child:
 ;-------------------------------------------------------------------------------
 ; C definition:
 ;
-;   void b_terminate (b_node_t *node);
+;   void b_terminate (b_node_t *node, b_delete_cb o_del_cb);
 ;
 ; param:
 ;
@@ -2155,7 +2352,7 @@ b_split_child:
 ; stack:
 ;
 ;   QWORD [rbp - 8]   = rdi (node)
-;   QWORD [rbp - 16]  = (size_t i)
+;   QWORD [rbp - 16]  = rsi (b_delete_cb o_del_cb)
 ;-------------------------------------------------------------------------------
 ;
       static b_terminate
@@ -2164,9 +2361,12 @@ b_terminate:
       push      rbp
       mov       rbp, rsp
       sub       rsp, 16
+      push      rbx
       push      r12
 ; QWORD [rbp - 8] = rdi (node)
       mov       QWORD [rbp - 8], rdi
+; QWORD [rbp - 16] = rsi (b_delete_cb o_del_cb)
+      mov       QWORD [rbp - 16], rsi
 ; BEGIN PRINTF
 ; printf(fmt, hdr19);
       xor       rax, rax
@@ -2174,51 +2374,60 @@ b_terminate:
       mov       rsi, hdr19
       ALIGN_STACK_AND_CALL r12, printf, wrt, ..plt
       mov       rdi, QWORD [rbp - 8]
+      mov       rsi, QWORD [rbp - 16]
 ; END PRINTF
 ; size_t i;
-; for (i = 0L; i < nn->nobj; i++) {
-      xor       rax, rax
-      mov       QWORD [rbp - 16], rax
+; for (x = 0; x < node->nobj; x++) {
+      xor       rbx, rbx
 .loop:
-      mov       rax, QWORD [rbp - 16]
-      cmp       rax, QWORD [rdi + b_node.nobj]
+      cmp       rbx, QWORD [rdi + b_node.nobj]
       jae       .break
-;   if (node->leaf == false) b_terminate(node->child[i])
+;   if (node->leaf == false) b_terminate(node->child[x], o_del_cb)
       movzx     eax, BYTE [rdi + b_node.leaf]
       test      eax, eax
       jnz       .leaf_node
-      mov       rsi, QWORD [rbp - 16]
+      mov       rsi, rbx
       call      b_child_at
       mov       rdi, QWORD [rax]
+      mov       rsi, QWORD [rbp - 16]
       call      b_terminate
 .leaf_node:
-;   term_cb(&nn->object)[i])
-      mov       rdi, QWORD [rbp - 8]
-      mov       rsi, QWORD [rbp - 16] 
+;   o_del_cb(&node->object)[i])
+      mov       rsi, rbx
       call      b_object_at
-      mov       rsi, QWORD [rdi + b_node.tree]
       mov       rdi, rax
-      mov       rcx, QWORD [rsi + b_tree.o_del_cb]
+      mov       rcx, QWORD [rbp - 16]
       ALIGN_STACK_AND_CALL r12, rcx
-      inc       QWORD [rbp - 16]
+;   if ((x % 8) == 0) sched_yield();
+      xor       rdx, rdx
+      mov       rax, rbx
+      mov       rcx, DIVISOR
+      div       rcx 
+      test      rdx, rdx
+      jnz       .cont
+      ALIGN_STACK_AND_CALL r12, sched_yield, wrt, ..plt
+.cont:
+      inc       rbx
       mov       rdi, QWORD [rbp - 8]
       jmp       .loop
 ; }
 .break:
-; if (node->leaf == false) b_terminate(nn->child[i], walk_cb);
+; if (node->leaf == false) b_terminate(nn->child[i], o_del_cb);
       mov       rdi, QWORD [rbp - 8]
       movzx     eax, BYTE [rdi + b_node.leaf]
       test      eax, eax
       jnz       .epilogue
-      mov       rsi, QWORD [rbp - 16]
+      mov       rsi, rbx
       call      b_child_at
       mov       rdi, QWORD [rax]
+      mov       rsi, QWORD [rbp - 16]
       call      b_terminate
 ; free(node);
       mov       rdi, QWORD [rbp - 8]
       ALIGN_STACK_AND_CALL r12, free, wrt, ..plt
 .epilogue:
       pop       r12
+      pop       rbx
       mov       rsp, rbp
       pop       rbp
       ret
@@ -2237,7 +2446,6 @@ b_terminate:
 ;
 ;   QWORD [rbp - 8]   = rdi (node)
 ;   QWORD [rbp - 16]  = rsi (walk_cb)
-;   QWORD [rbp - 24]  = (size_t i)
 ;-------------------------------------------------------------------------------
 ;
       static b_traverse
@@ -2245,7 +2453,8 @@ b_traverse:
 ; prologue
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 24
+      sub       rsp, 16
+      push      rbx
       push      r15
 ; QWORD [rbp - 8] = rdi (node)
       mov       QWORD [rbp - 8], rdi
@@ -2260,19 +2469,16 @@ b_traverse:
       mov       rdi, QWORD [rbp - 8]
       mov       rsi, QWORD [rbp - 16]
 ; END PRINTF
-; size_t i;
-; for (i = 0L; i < nn->nobj; i++) {
-      xor       rax, rax
-      mov       QWORD [rbp - 24], rax
+; for (i = 0; i < node->nobj; i++) {
+      xor       rbx, rbx
 .loop:
-      mov       rax, QWORD [rbp - 24]
-      cmp       rax, QWORD [rdi + b_node.nobj]
+      cmp       rbx, QWORD [rdi + b_node.nobj]
       jae       .break
 ;   if (node->leaf == false) b_traverse(node->child[i], walk_cb)
       movzx     eax, BYTE [rdi + b_node.leaf]
       test      eax, eax
       jnz       .leaf_node
-      mov       rsi, QWORD [rbp - 24]
+      mov       rsi, rbx
       call      b_child_at
       mov       rdi, QWORD [rax]
       mov       rsi, QWORD [rbp - 16]
@@ -2280,12 +2486,21 @@ b_traverse:
 .leaf_node:
 ;   walk_cb(&nn->object)[i])
       mov       rdi, QWORD [rbp - 8]
-      mov       rsi, QWORD [rbp - 24] 
+      mov       rsi, rbx
       call      b_object_at
       mov       rdi, rax
-      mov       rsi, QWORD [rbp - 16]
-      ALIGN_STACK_AND_CALL r15, rsi
-      inc       QWORD [rbp - 24]
+      mov       rcx, QWORD [rbp - 16]
+      ALIGN_STACK_AND_CALL r15, rcx
+;   if ((x % 8) == 0) sched_yield();
+      xor       rdx, rdx
+      mov       rax, rbx
+      mov       rcx, DIVISOR
+      div       rcx 
+      test      rdx, rdx
+      jnz       .cont
+      ALIGN_STACK_AND_CALL r12, sched_yield, wrt, ..plt
+.cont:
+      inc       rbx
       mov       rdi, QWORD [rbp - 8]
       jmp       .loop
 ; }
@@ -2295,13 +2510,14 @@ b_traverse:
       movzx     eax, BYTE [rdi + b_node.leaf]
       test      eax, eax
       jnz       .epilogue
-      mov       rsi, QWORD [rbp - 24]
+      mov       rsi, rbx
       call      b_child_at
       mov       rdi, QWORD [rax]
       mov       rsi, QWORD [rbp - 16]
       call      b_traverse
 .epilogue:
       pop         r15
+      pop         rbx
       mov         rsp, rbp
       pop         rbp
       ret
@@ -2362,6 +2578,7 @@ b_tree_term:
 ; prologue:
       push      rbp
       mov       rbp, rsp
+      sub       rsp, 8
       push      r12
 ; QWORD [rbp - 8] = rdi (tree)
       mov       QWORD [rbp - 8], rdi
@@ -2378,8 +2595,8 @@ b_tree_term:
       test      rax, rax
       jz        .epilogue
 ; b_terminate(tree->root, tree->o_del_cb);
-      mov       rdi, rax
       mov       rsi, QWORD [rdi + b_tree.o_del_cb]
+      mov       rdi, rax
       call      b_terminate
 .epilogue:
       pop       r12

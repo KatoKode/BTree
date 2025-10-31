@@ -18,11 +18,11 @@
 #-------------------------------------------------------------------------------
 #
 libbtree.so: btree_asm.o btree.o
-	gcc -march=x86-64 -m64 -z noexecstack -shared btree_asm.o btree.o -o libbtree.so
+	gcc -g -march=x86-64 -m64 -z noexecstack -shared btree_asm.o btree.o -o libbtree.so
 btree.o: btree.c
-	gcc -march=x86-64 -m64 -Wall -fPIC -c btree.c -o btree.o
+	gcc -g -march=x86-64 -m64 -Wall -fPIC -c btree.c -o btree.o
 btree_asm.o: btree.asm
-	nasm -f elf64 btree.asm -o btree_asm.o
+	nasm -g -f elf64 btree.asm -o btree_asm.o
 .PHONY: clean
 clean:
 	rm -f libbtree.so btree.o btree_asm.o
