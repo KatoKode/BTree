@@ -24,12 +24,12 @@
 #include "../util/util.h"
 
 // defines you can modify
-#define DATA_COUNT    128
-#define DELETE_COUNT  0
+#define DATA_COUNT    120 * 1024
+#define DELETE_COUNT  (DATA_COUNT) * 0.75
 
 // defines you should not modify
 #define STR_LEN   15
-#define MINIMUM_DEGREE  15
+#define MINIMUM_DEGREE  255
 
 // index for tree walking
 size_t ndx;

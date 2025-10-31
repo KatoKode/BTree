@@ -76,6 +76,9 @@ int main (int argc, char *argv[]) {
     // search for a matching data_t object and delete it from the tree
     b_remove(tree, (void const *)&da[n]);
 
+    // yield the CPU when dealing with duplicates
+    sched_yield();
+
     puts("\n---| begin search after delete |---\n");
 
     // search for deleted data_t object to test deletion
@@ -107,10 +110,10 @@ int main (int argc, char *argv[]) {
 int o_cmp_cb (void const *vp1, void const *vp2) {
   data_t const *d1 = vp1;
   data_t const *d2 = vp2;
-
+/*
   printf("%s:  d1: %8.6f s: %8s (lt eq gt) d2: %8.6f s: %8s\n",
       __func__, d1->d, d1->s, d2->d, d2->s);
-
+*/
   // do comparsions
   if (d1->d > d2->d) return 1;
   else if (d1->d < d2->d) return -1;
@@ -122,10 +125,10 @@ int o_cmp_cb (void const *vp1, void const *vp2) {
 int k_cmp_cb (void const * vp1, void const * vp2) {
   double const d = *(double const *)vp1;
   data_t const *d2 = vp2;
-
+/*
   printf("%s:  d: %8.6f (lt eq gt) d: %8.6f  s:%8s\n",
       __func__, d, d2->d, d2->s);
-
+*/
   // do comparsions
   if (d > d2->d) return 1;
   else if (d < d2->d) return -1;

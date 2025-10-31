@@ -17,9 +17,9 @@
 #   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #-------------------------------------------------------------------------------
 demo: main.o ../btree/libbtree.so ../util/libutil.so
-	gcc -march=x86-64 -m64 -z noexecstack main.o ../btree/libbtree.so ../util/libutil.so -o demo
+	gcc -g -march=x86-64 -m64 -z noexecstack main.o ../btree/libbtree.so ../util/libutil.so -o demo
 main.o: main.c
-	gcc -march=x86-64 -m64 -Wall -c main.c -pthread -o main.o
+	gcc -g -march=x86-64 -m64 -Wall -c main.c -pthread -o main.o
 .PHONY: clean
 clean:
 	rm -f demo main.o
