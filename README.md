@@ -46,7 +46,11 @@ You can modify a couple defines in the C header file `main.h`:
 #define DATA_COUNT    128
 #define DELETE_COUNT    0
 ```
+#defines MINIMUM_DEGREE 255
+
 Modifying these defines will change the behavior of the demo program.
+
+Modifying MINIMUM_DEGREE should done with care.  More will be provided on this in the future.
 
 NOTE: The demo program will not check for negative values or `DELETE_COUNT` having a larger value than `DATA_COUNT`.
 
