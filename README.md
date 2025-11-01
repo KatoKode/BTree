@@ -45,8 +45,8 @@ You can modify a couple defines in the C header file `main.h`:
 ```c
 #define DATA_COUNT    128
 #define DELETE_COUNT    0
-```
 #defines MINIMUM_DEGREE 255
+```
 
 Modifying these defines will change the behavior of the demo program.
 
@@ -56,7 +56,12 @@ NOTE: The demo program will not check for negative values or `DELETE_COUNT` havi
 
 There are calls to `printf` in the `btree.asm` file.  They are for demo purposes only and can be removed or commented out.  The `printf` code sections are marked with comment lines: `BEGIN PRINTF`; and `END PRINTF`.  The format and text strings passed to `printf` are in the `.data` section of the `btree.asm` file.
 
-Have Fun!
+---
+
+# LEAVE A STAR
+If you like the KatoKode BTree repository by all means leave a STAR to encourage others to visit.
+
+Thanks, and Have Fun!
 
 ---
 
