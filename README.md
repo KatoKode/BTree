@@ -25,6 +25,14 @@ The BTree implementaton is based on a C++ implementation found at:
 
 ---
 
+# DEBUG FLAGS
+I left the debug flags in place.  You can remove them
+from the `makefile`s in the `util`, `btree` and `demo`
+folders.  Look for the `-g` flags and remove them from
+the `makefile`.
+
+---
+
 # CREATE THE DEMO
 Run the following command in the `BTree-main` folder:
 ```bash
