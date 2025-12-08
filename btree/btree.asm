@@ -1364,10 +1364,10 @@ b_insert_non_full:
       jnz       .cont_01
       ALIGN_STACK_AND_CALL r12, sched_yield, wrt, ..plt
 .cont_01:
-;   --i;
       dec       rbx
       mov       QWORD [rbp - 24], rbx
       jmp       .object_move_loop
+;   }
 .object_move_break:
 ;   (void)memmove64(node->object[i + 1], object, node->tree->o_size);
       mov       rdi, QWORD [rbp - 8]
@@ -2406,6 +2406,7 @@ b_terminate:
       call      b_terminate
 .leaf_node:
 ;   o_del_cb(&node->object)[i])
+      mov       rdi, QWORD [rbp - 8]
       mov       rsi, rbx
       call      b_object_at
       mov       rdi, rax
@@ -2551,11 +2552,11 @@ b_traverse:
 ;   r8  = k_cmp_cb
 ;   r9  = o_del_cb
 ;   rsp = k_get_cb
-;
 ;-------------------------------------------------------------------------------
 ;
       global b_tree_init:function
 b_tree_init:
+; prologue
       push      rbp
       mov       rbp, rsp
       push      r12
@@ -2574,6 +2575,7 @@ b_tree_init:
       push      r12
       ALIGN_STACK_AND_CALL r12, printf, wrt, ..plt
 ; END PRINTF
+;epilogue
       pop       r12
       mov       rsp, rbp
       pop       rbp
