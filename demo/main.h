@@ -19,31 +19,38 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
+#include <math.h>
 #include <pthread.h>
 #include "../btree/btree.h"
 #include "../util/util.h"
 
 // defines you can modify
-#define DATA_COUNT    120 * 1024
-#define DELETE_COUNT  (DATA_COUNT) * 0.75
+#define DATA_COUNT      (8 * 1024)
+#define DELETE_COUNT    (DATA_COUNT * 0.75)
+#define MINIMUM_DEGREE  2
+#define INS_MOD_BY      64
+#define DEL_MOD_BY      64
 
 // defines you should not modify
 #define STR_LEN   15
-#define MINIMUM_DEGREE  255
 
 // index for tree walking
 size_t ndx;
+size_t o_del_count;
 
 // data object
 typedef struct data data_t;
 
 struct data {
-  double    d;
-  char      s[STR_LEN + 1];
+//  double    d;
+  long      lng;
+  char      str[STR_LEN + 1];
 };
 
 // array of doubles
-double da [DATA_COUNT];
+//double da [DATA_COUNT];
+long la [DATA_COUNT];
 
 // callback definitions
 int o_cmp_cb (void const *, void const *);
