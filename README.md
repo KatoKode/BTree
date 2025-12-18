@@ -43,7 +43,7 @@ In folder `demo` enter the following command:
 ---
 
 # THINGS TO KNOW
-You can modify some defines in the C header file `main.h`.  The initial minimum degree is 2. The demo will insert 8192 objects into the tree.  Then delete 6144 (75%) of the objects.  So, in the output file `out.txt` in the `demo` folder search for `8191:`, then search for `2047:`.  Those are the totals for insertion and deletion.
+You can modify the defines listed below in the C header file `main.h`.  The initial minimum degree is 2. The demo will insert 8192 objects into the tree.  Then delete 6144 (75%) of the objects.  So, in the output file `out.txt` in the `demo` folder search for `8191:`, then search for `2047:`.  Those are the totals for insertion and deletion.
 ```c
 #define DATA_COUNT      (8 * 1024)
 #define DELETE_COUNT    (DATA_COUNT * 0.75)
