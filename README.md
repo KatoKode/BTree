@@ -1,16 +1,14 @@
 
 ---
 
-Just Another Armchair Programmer
-
-BTree Implementation in x86_64 Assembly Language with C interface
+KatoKode: BTree Implementation in x86_64 Assembly Language with C interface
 
 by Jerry McIntosh
 
 ---
 
 # INTRODUCTION
-This is an Assembly Language implementation of a BTree (Multiway-Tree).  The BTree is implemented as a shared-library with a C interface.  There is also a C demo program.
+The BTree is implemented as a shared-library with a C interface with a C demo program.
 
 The BTree implementaton is based on a C++ implementation found at:
 
