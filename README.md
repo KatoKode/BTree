@@ -1,10 +1,11 @@
 
 ---
 
+Just Another Armchair Programmer
+
 BTree Implementation in x86_64 Assembly Language with C interface
 
 by Jerry McIntosh
-katokode@proton.me
 
 ---
 
@@ -25,14 +26,6 @@ The BTree implementaton is based on a C++ implementation found at:
 
 ---
 
-# DEBUG FLAGS
-I left the debug flags in place.  You can remove them
-from the `makefile`s in the `util`, `btree` and `demo`
-folders.  Look for the `-g` flags and remove them from
-the `makefile`.
-
----
-
 # CREATE THE DEMO
 Run the following command in the `BTree-main` folder:
 ```bash
@@ -50,27 +43,19 @@ In folder `demo` enter the following command:
 ---
 
 # THINGS TO KNOW
-You can modify a couple defines in the C header file `main.h`:
+You can modify some defines in the C header file `main.h`.  The initial minimum degree is 2. The demo will insert 8192 objects into the tree.  Then delete 6144 (75%) of the objects.  So, in the output file `out.txt` in the `demo` folder search for `8191:`, then search for `2047:`.  Those are the totals for insertion and deletion.
 ```c
-#define DATA_COUNT    128
-#define DELETE_COUNT    0
-#defines MINIMUM_DEGREE 255
+#define DATA_COUNT      (8 * 1024)
+#define DELETE_COUNT    (DATA_COUNT * 0.75)
+#define MINIMUM_DEGREE  2
+#define INS_MOD_BY      64
+#define DEL_MOD_BY      64
 ```
-
 Modifying these defines will change the behavior of the demo program.
-
-Modifying MINIMUM_DEGREE should done with care.  More will be provided on this in the future.
 
 NOTE: The demo program will not check for negative values or `DELETE_COUNT` having a larger value than `DATA_COUNT`.
 
-There are calls to `printf` in the `btree.asm` file.  They are for demo purposes only and can be removed or commented out.  The `printf` code sections are marked with comment lines: `BEGIN PRINTF`; and `END PRINTF`.  The format and text strings passed to `printf` are in the `.data` section of the `btree.asm` file.
-
----
-
-# LEAVE A STAR
-If you like the KatoKode BTree repository by all means leave a STAR to encourage others to visit.
-
-Thanks, and Have Fun!
+Have Fun!
 
 ---
 
