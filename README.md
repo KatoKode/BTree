@@ -40,6 +40,17 @@ In folder `demo` enter the following command:
 
 ---
 
+### Benchmarks (Single-Threaded)
+
+14,336 operations (8192 inserts + 6144 deletes)  
+Minimum degree t=2 (maximum splits/merges/borrows)  
+
++ Average wall time: ~22.93 seconds  
++ Throughput: ~625 ops/second  
++ Variance: Extremely low (±0.11s across 10 runs)
+
+---
+
 # THINGS TO KNOW
 You can modify the defines listed below in the C header file `main.h` in folder `demo`.  The initial minimum degree is 2. The demo will insert 8192 objects into the tree.  Then delete 6144 (75%) of the objects.  So, in the output file `out.txt` in the `demo` folder search for `8191:`, then search for `2047:`.  Those are the totals for insertion and deletion.
 ```c
