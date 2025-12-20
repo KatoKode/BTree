@@ -1,19 +1,19 @@
 /*------------------------------------------------------------------------------
-    BTree (BTREE) Implementation in x86_64 Assembly Language with C Interface
+    BTree Implementation in x86_64 Assembly Language with C Interface
     Copyright (C) 2025  J. McIntosh
 
-      BTREE is free software; you can redistribute it and/or modify
-      it under the terms of the GNU General Public License as published by
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
     (at your option) any later version.
 
-    BTREE is distributed in the hope that it will be useful,
+    This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License along
-    with BTREE; if not, write to the Free Software Foundation, Inc.,
+    with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 ------------------------------------------------------------------------------*/
 #include "main.h"
@@ -24,7 +24,6 @@ int main (int argc, char *argv[]) {
     printf ("usage: ./btest [random number]\n");
     return -1;
   }
-
   // myrand will hold the random number paramenter
   size_t myrand = strtol(argv[1], NULL, 10);
   srand48(myrand);    // initialize the random number generator
@@ -37,14 +36,8 @@ int main (int argc, char *argv[]) {
   b_tree_t *tree = b_tree_alloc();
   b_tree_init(tree, mindeg, o_size, o_cmp_cb, k_cmp_cb, o_del_cb, k_get_cb);
 
-  // data_t object used by b_search to hold return value
-//  data_t db = {0, "0"};
-
-  struct timespec req = { 0, 125000000 };
-
   for (size_t i = 0; i < DATA_COUNT; ++i) {
     data_t d;
-    size_t x = 0;
 
     // get a random double, populate a data_t object, and search the tree for a
     // duplicate
@@ -58,23 +51,15 @@ int main (int argc, char *argv[]) {
       // convert the random double to a string and store in our data object
       (void) snprintf(d.str, STR_LEN + 1, "%ld", d.lng);
 
-      // yield the CPU when dealing with duplicates
-      if ((x++ % 2) == 0) sched_yield();
-
       // search tree for duplicate data_t object
     } while (b_insert(tree, &d) < 0);
-
-    // sleep a bit
-    if ((i % INS_MOD_BY) == 0) nanosleep(&req, NULL);
   }
-
+#ifdef WALK_TREE
   // walk the tree outputing data_t objects
   walk_tree(tree);
-
+#endif
   size_t delete_count = (size_t)floor(DELETE_COUNT);
-//  printf("DELETE_COUNT: %lu\n", delete_count);
 
-  o_del_count = 0;
   // delete some data_t objects from the tree
   for (size_t n = 0; n < delete_count; ++n) {
 #ifdef DEMO_DEBUG
@@ -91,28 +76,28 @@ int main (int argc, char *argv[]) {
       print_data("\n---| DELETION ERROR! |---\n", dp);
     }
 #endif
-    // sleep a bit
-    if ((n % DEL_MOD_BY) == 0) nanosleep(&req, NULL);
   }
 
-//  printf("o_del_count: %lu == delete_count: %lu\n", o_del_count, delete_count);
 
   // try to delete a data_t object that is not in the tree
   puts("\n---| begin delete of key not in tree |---\n");
   long lng = lrand48();
   b_remove(tree, (void const *)&lng);
-
+#ifdef WALK_TREE
   // walk the tree outputing data_t objects - again
   walk_tree(tree);
-
+#endif
   // release memory held by all the data_t objects (if any), as well as, all
   // the memory held by the tree
   term_tree(tree);
 
   return 0;
 }
+//------------------------------------------------------------------------------
 //
-// callback to compare objects
+// O_CMP_CB
+//
+//------------------------------------------------------------------------------
 int o_cmp_cb (void const *vp1, void const *vp2) {
   data_t const *d1 = vp1;
   data_t const *d2 = vp2;
@@ -125,9 +110,11 @@ int o_cmp_cb (void const *vp1, void const *vp2) {
   else if (d1->lng < d2->lng) return -1;
   return 0;
 }
+//------------------------------------------------------------------------------
 //
-// callback to compare key with object
+// K_CMP_CB
 //
+//------------------------------------------------------------------------------
 int k_cmp_cb (void const * vp1, void const * vp2) {
   long const lng = *(long const *)vp1;
   data_t const *d2 = vp2;
@@ -140,9 +127,11 @@ int k_cmp_cb (void const * vp1, void const * vp2) {
   else if (lng < d2->lng) return -1;
   return 0;
 }
+//------------------------------------------------------------------------------
 //
-// callback to get object key
+// K_GET_CB
 //
+//------------------------------------------------------------------------------
 void const * k_get_cb (void const *vp) {
   data_t const *dp = vp;
 #ifdef DEMO_DEBUG
@@ -151,27 +140,32 @@ void const * k_get_cb (void const *vp) {
   // return object key
   return &dp->lng;
 }
+//------------------------------------------------------------------------------
 //
-// callback to process object before deletion from tree
+// O_DEL_CB
 //
+//------------------------------------------------------------------------------
 void o_del_cb (void const *vp) {
 #ifdef DEMO_DEBUG
-  o_del_count++;
   data_t const *d = vp;
   print_data(__func__, d);
 #endif
 }
 #ifdef DEMO_DEBUG
+//------------------------------------------------------------------------------
 //
-// output data object
+// PRINT_DATA
 //
+//------------------------------------------------------------------------------
 void print_data (char const *s, data_t const *d) {
   printf("%s:  lng: %ld str: %s\n", s, d->lng, d->str);
 }
 #endif
+//------------------------------------------------------------------------------
 //
-// terminate tree
+// TERM_TREE
 //
+//------------------------------------------------------------------------------
 void term_tree (b_tree_t *tree) {
 #ifdef DEMO_DEBUG
   puts("\n---| term tree |---\n");
@@ -179,21 +173,23 @@ void term_tree (b_tree_t *tree) {
   b_tree_term(tree);
   b_tree_free(tree);
 }
+//------------------------------------------------------------------------------
 //
-// callback for tree walking
+// WALK_CB
 //
+//------------------------------------------------------------------------------
 void walk_cb (void const *vp) {
   data_t const *d = vp;
 
   printf("%6lu:  lng: %ld  str: %s\n", ndx++, d->lng, d->str);
 
   fflush(stdout);
-
-  if ((ndx % 8) == 0) sched_yield();
 }
+//------------------------------------------------------------------------------
 //
-// begin tree walking
+// WALK_TREE
 //
+//------------------------------------------------------------------------------
 void walk_tree (b_tree_t *tree) {
   puts("\n---| walk tree |---\n");
 

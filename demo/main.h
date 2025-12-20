@@ -1,34 +1,32 @@
 /*------------------------------------------------------------------------------
-    BTree (BTREE) Implementation in x86_64 Assembly Language with C Interface
+    BTree Implementation in x86_64 Assembly Language with C Interface
     Copyright (C) 2025  J. McIntosh
 
-    BTREE is free software; you can redistribute it and/or modify
+    This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
     (at your option) any later version.
 
-    BTREE is distributed in the hope that it will be useful,
+    This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License along
-    with BTREE; if not, write to the Free Software Foundation, Inc.,
+    with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 ------------------------------------------------------------------------------*/
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <time.h>
 #include <math.h>
-#include <pthread.h>
 #include "../btree/btree.h"
 #include "../util/util.h"
 
 // defines you can modify
-#define DATA_COUNT      (8 * 1024)
+#define DATA_COUNT      (8192 * 1024)
 #define DELETE_COUNT    (DATA_COUNT * 0.75)
-#define MINIMUM_DEGREE  2
+#define MINIMUM_DEGREE  64
 #define INS_MOD_BY      64
 #define DEL_MOD_BY      64
 
@@ -64,3 +62,4 @@ void print_data (char const *, data_t const *);
 void term_tree (b_tree_t *);
 // begin walking the tree
 void walk_tree (b_tree_t *);
+
