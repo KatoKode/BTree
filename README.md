@@ -8,7 +8,7 @@ by Jerry McIntosh
 ---
 
 ## INTRODUCTION
-The BTree is implemented as a shared-library with a C interface with a C demo program.
+The BTree is implemented as a shared-library with a C interface and a C demo program.
 
 The BTree implementaton is based on a C++ implementation found at:
 
