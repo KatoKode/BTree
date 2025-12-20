@@ -26,7 +26,7 @@
 // defines you can modify
 #define DATA_COUNT      (8192 * 1024)
 #define DELETE_COUNT    (DATA_COUNT * 0.75)
-#define MINIMUM_DEGREE  64
+#define MINIMUM_DEGREE  2
 #define INS_MOD_BY      64
 #define DEL_MOD_BY      64
 
