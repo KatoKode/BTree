@@ -18,17 +18,33 @@ The BTree implementaton is based on a C++ implementation found at:
 
 ### Benchmarks (Single-Threaded)
 
-+ 14,336 operations (8192 inserts + 6144 deletes)  
-+ Minimum degree t=2 (maximum splits/merges/borrows)  
-+ Average wall time: ~22.93 seconds  
-+ Throughput: ~625 ops/second  
-+ Variance: (±0.11s across 10 runs)
-+ Running on a Dell XPS 15 9510
+This x86-64 Assembly B-Tree implementation delivers excellent single-threaded performance on mixed insert/delete workloads with (24-byte) objects. Benchmark (single-threaded, minimum degree 2, random keys): 8,388,608 insertions followed by 6,291,456 deletions (14,680,064 total operations):
+
+Average time (10 runs): 24.78 seconds
+
+Throughput: ~593,000 operations per second
+
+
+With minimum degree 64 (shallower tree, larger nodes): Same workload: average 41.73 seconds (~352,000 ops/sec)
+
+These results are competitive with optimized in-memory B-Trees, especially considering full rebalancing (borrow/merge on delete) and generic callbacks. The mindeg=2 configuration excels with larger payloads due to reduced data movement during structural changes.
+
+
+---
+
+### Valgrind-certified leak-free
+
+HEAP SUMMARY:
+    in use at exit: 0 bytes in 0 blocks
+  total heap usage: 1,004 allocs, 1,004 frees, 48,784 bytes allocated
+
+All heap blocks were freed -- no leaks are possible
+
+ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
 
 ---
 
 ## LIST OF REQUIREMENTS
-
 + Linux OS
 + Programming languages: C and Assembly
 + Netwide Assembler (NASM), the GCC compiler, and the Make utility
@@ -37,7 +53,7 @@ The BTree implementaton is based on a C++ implementation found at:
 
 ---
 
-## CREATE THE DEMO
+## BUILD THE DEMO
 Run the following command in the `BTree-main` folder:
 ```bash
 sh ./btree_make.sh
@@ -71,3 +87,4 @@ NOTE: The demo program will not check for negative values or `DELETE_COUNT` havi
 Have Fun!
 
 ---
+
