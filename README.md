@@ -82,7 +82,7 @@ These results are competitive with optimized in-memory B-Trees, especially consi
 ### Valgrind-certified leak-free
 HEAP SUMMARY:
     in use at exit: 0 bytes in 0 blocks
-  total heap usage: 1,004 allocs, 1,004 frees, 48,784 bytes allocated
+  total heap usage: 406,633 allocs, 406,633 frees, 300,808,344 bytes allocated
 
 All heap blocks were freed -- no leaks are possible
 
