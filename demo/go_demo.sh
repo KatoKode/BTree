@@ -20,12 +20,7 @@
 # !/bin/sh
 echo -e "\nRunning ./demo"
 rnd=`shuf -i 10000000-99999999 -n 1`
-# perf record -g ./demo "${rnd}" > ./out.txt
-# perf record -g ./demo "${rnd}" > /dev/null
-# time ./demo "${rnd}" > ./out.txt
 time ./demo "${rnd}" > /dev/null
-# valgrind --leak-check=full -s --show-leak-kinds=all ./demo "${rnd}" > /dev/null
-# valgrind --leak-check=full -s --show-leak-kinds=all ./demo "${rnd}" > ./out.txt
 echo -e "\nOutput in file ./out.txt\n"
 read -r -p "View file ./out.txt? [Y/n] " YN
 case ${YN:-Y} in
