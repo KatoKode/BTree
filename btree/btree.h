@@ -58,26 +58,11 @@ struct b_tree {
 #define b_tree_alloc() (calloc(1, sizeof(b_tree_t)))
 #define b_tree_free(P) (free(P), P = NULL)
 
-void b_borrow_from_next (b_node_t *, size_t const);
-void b_borrow_from_prev (b_node_t *, size_t const);
-void b_delete (b_node_t *, void const *);
-void b_delete_from_leaf (b_node_t *, size_t const);
-void b_delete_from_non_leaf (b_node_t *, size_t const);
-void b_fill (b_node_t *, size_t const);
-size_t b_find_key (b_node_t *, void const *, int *);
-size_t b_hunt_key (b_node_t *, void const *, int *);
 int b_insert (b_tree_t *, void const *);
-void b_insert_non_full (b_node_t *, void const *);
-void b_merge (b_node_t *, size_t const);
-void * b_next_object (b_node_t *, size_t const);
 void b_node_init (b_node_t *, b_tree_t *, uint8_t const );
 void b_node_term (b_node_t *);
-void * b_object_at (b_node_t *, size_t const);
-void * b_prev_object (b_node_t *, size_t const);
 void b_remove (b_tree_t *, void const *);
 void * b_search (b_node_t *, void const *);
-void b_split_child (b_node_t *, ssize_t const, b_node_t *);
-void b_traverse (b_node_t *, b_walk_cb);
 void b_tree_init (b_tree_t *, size_t const, size_t const, b_compare_cb,
     b_compare_cb, b_delete_cb, b_get_key_cb);
 void b_tree_term (b_tree_t *);
