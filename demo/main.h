@@ -23,6 +23,8 @@
 #include "../btree/btree.h"
 #include "../util/util.h"
 
+#define WALK_TREE  1
+
 // defines you can modify
 #define DATA_COUNT      (8192 * 1024)
 #define DELETE_COUNT    (DATA_COUNT * 0.75)
