@@ -1,14 +1,9 @@
-
----
-
 # Single-Threaded BTree Implementation in x86_64 Assembly Language with C interface as a Shared-Library
 
 [![License: GPL-2.0](https://img.shields.io/badge/License-GPL%202.0-blue.svg)](https://opensource.org/licenses/GPL-2.0)
 [![Stars](https://img.shields.io/github/stars/KatoKode/BTree?style=social)](https://github.com/KatoKode/BTree/stargazers)
 
-by Jerry McIntosh
-
----
+by JD McIntosh
 
 ## INTRODUCTION
 The BTree is implemented as a shared-library with a C interface and a C demo program.
