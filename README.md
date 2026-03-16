@@ -12,12 +12,14 @@ The BTree implementaton is based on a C++ implementation found at:
 
 [GeeksforGeeks: Delete Operation in B-Tree](https://www.geeksforgeeks.org/delete-operation-in-b-tree/?ref=lbp)
 
+---
+
 ### Why This Looks Scary (And Why That’s the Point)
 
 This library will **never** be production code.  
 Who in their right mind would volunteer to maintain raw x86-64 assembly mixed with C?  
 
-I like the freedom of knowing **exactly** what the code is doing and being able to make it do exactly that.  
+I like the freedom of knowing what the code is doing and being able to make it do exactly that.  
 I want to stay close to the metal — to understand the hardware, the OS, the calling conventions, the cache hierarchy, and the gritty details most modern developers never touch.
 
 This repo (and everything else under KatoKode) is my way of proving I still can.  
@@ -25,6 +27,8 @@ It’s not about shipping a product. It’s about mastering the complexity, one 
 
 Old-school by choice.  
 If that scares you… good. That’s the point. 😏
+
+---
 
 ## FEATURES
 
