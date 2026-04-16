@@ -84,7 +84,7 @@ b_borrow_from_next:
 ; prologue:
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 56
+      sub       rsp, 48
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 16], rsi
       mov       QWORD [rbp - 48], rbx
@@ -227,7 +227,7 @@ b_borrow_from_prev:
 ; prologue:
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 56
+      sub       rsp, 48
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 16], rsi
       mov       QWORD [rbp - 48], rbx
@@ -388,7 +388,7 @@ b_child_at:
 b_delete:
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 56
+      sub       rsp, 48
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 16], rsi
 ; int cond;
@@ -509,7 +509,7 @@ b_delete_from_leaf:
 ; prologue
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 40
+      sub       rsp, 32
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 16], rsi
       mov       QWORD [rbp - 32], rbx
@@ -523,7 +523,7 @@ b_delete_from_leaf:
       mov       rax, QWORD [rdi + b_node.tree]
       mov       rcx, QWORD [rax + b_tree.o_del_cb]
       pop       rdi
-      ALIGN_STACK_AND_CALL rbx, rcx
+      call      rcx
 ; for (int x = i + 1; x < node->nobj; ++x) {
       mov       rbx, QWORD [rbp - 16]
 .shift_object_loop:
@@ -583,7 +583,7 @@ b_delete_from_non_leaf:
 ; prologue
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 72
+      sub       rsp, 80
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 16], rsi
       mov       QWORD [rbp - 72], rbx
@@ -592,7 +592,7 @@ b_delete_from_non_leaf:
       mov       rax, QWORD [rbx + b_tree.o_size]
       mov       rdi, 1
       mov       rsi, rax
-      ALIGN_STACK_AND_CALL rbx, calloc, wrt, ..plt
+      call      calloc wrt ..plt
       mov       QWORD [rbp - 64], rax
       test      rax, rax
       jz        .epilogue
@@ -632,7 +632,7 @@ b_delete_from_non_leaf:
       mov       rax, QWORD [rbx + b_tree.o_size]
       mov       rdi, 1
       mov       rsi, rax
-      ALIGN_STACK_AND_CALL rbx, calloc, wrt, ..plt
+      call      calloc wrt ..plt
       mov       QWORD [rbp - 56], rax
       test      rax, rax
       jz        .penultimate
@@ -641,7 +641,7 @@ b_delete_from_non_leaf:
       mov       rax, QWORD [rdi + b_node.tree]
       mov       rcx, QWORD [rax + b_tree.o_del_cb]
       mov       rdi, QWORD [rbp - 64]
-      ALIGN_STACK_AND_CALL rbx, rcx
+      call      rcx
 ;   memmove64(prev, b_prev_object(node, i), node->tree->o_size);
       mov       rdi, QWORD [rbp - 8]
       mov       rsi, QWORD [rbp - 16]
@@ -663,13 +663,13 @@ b_delete_from_non_leaf:
       mov       rax, QWORD [rdi + b_node.tree]
       mov       rcx, QWORD [rax + b_tree.k_get_cb]
       mov       rdi, QWORD [rbp - 56]
-      ALIGN_STACK_AND_CALL rbx, rcx
+      call      rcx
       mov       rsi, rax
       mov       rdi, QWORD [rbp - 24]
       call      b_delete
 ;   free(prev);
       mov       rdi, QWORD [rbp - 56]
-      ALIGN_STACK_AND_CALL rbx, free, wrt, ..plt
+      call      free wrt ..plt
       jmp       .penultimate
 ; } else if (sibling->nobj >= node->tree->mindeg) {
 .else_if:
@@ -683,7 +683,7 @@ b_delete_from_non_leaf:
       mov       rax, QWORD [rbx + b_tree.o_size]
       mov       rdi, 1
       mov       rsi, rax
-      ALIGN_STACK_AND_CALL rbx, calloc, wrt, ..plt
+      call      calloc wrt ..plt
       mov       QWORD [rbp - 56], rax
       test      rax, rax
       jz        .penultimate
@@ -692,7 +692,7 @@ b_delete_from_non_leaf:
       mov       rax, QWORD [rdi + b_node.tree]
       mov       rcx, QWORD [rax + b_tree.o_del_cb]
       mov       rdi, QWORD [rbp - 64]
-      ALIGN_STACK_AND_CALL rbx, rcx
+      call      rcx
 ;   memmove64(next, b_next_object(node, i), node->tree->o_size);
       mov       rdi, QWORD [rbp - 8]
       mov       rsi, QWORD [rbp - 16]
@@ -714,13 +714,13 @@ b_delete_from_non_leaf:
       mov       rax, QWORD [rdi + b_node.tree]
       mov       rcx, QWORD [rax + b_tree.k_get_cb]
       mov       rdi, QWORD [rbp - 56]
-      ALIGN_STACK_AND_CALL rbx, rcx
+      call      rcx
       mov       rsi, rax
       mov       rdi, QWORD [rbp - 32]
       call      b_delete
 ;   free(next);
       mov       rdi, QWORD [rbp - 56]
-      ALIGN_STACK_AND_CALL rbx, free, wrt, ..plt
+      call      free wrt ..plt
       jmp       .penultimate
 ; }
 ; else {
@@ -734,14 +734,14 @@ b_delete_from_non_leaf:
       mov       rax, QWORD [rdi + b_node.tree]
       mov       rcx, QWORD [rax + b_tree.k_get_cb]
       mov       rdi, QWORD [rbp - 64]
-      ALIGN_STACK_AND_CALL rbx, rcx
+      call      rcx
       mov       rsi, rax
       mov       rdi, QWORD [rbp - 24]
       call      b_delete
 ; }
 .penultimate:
       mov       rdi, QWORD [rbp - 64]
-      ALIGN_STACK_AND_CALL rbx, free, wrt, ..plt
+      call      free wrt ..plt
 .epilogue:
       mov       rbx, QWORD [rbp - 72]
       mov       rsp, rbp
@@ -770,7 +770,7 @@ b_fill:
 ; prologue
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 24
+      sub       rsp, 32
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 16], rsi
 ; size_t mindeg = node->tree->mindeg;
@@ -863,7 +863,7 @@ b_find_key:
 ; prologue
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 72
+      sub       rsp, 80
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 16], rsi
       mov       QWORD [rbp - 24], rdx
@@ -902,7 +902,7 @@ b_find_key:
       mov       rsi, rax
       mov       rdi, QWORD [rbp - 16]
       mov       rcx, QWORD [rbp - 32]
-      ALIGN_STACK_AND_CALL rbx, rcx
+      call      rcx
       mov       rcx, QWORD [rbp - 24]
       mov       DWORD [rcx], eax
 ;   if (*cond == 0) return mid;
@@ -969,7 +969,7 @@ b_hunt_key:
 ; prologue
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 56
+      sub       rsp, 48
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 16], rsi
       mov       QWORD [rbp - 24], rdx
@@ -991,7 +991,7 @@ b_hunt_key:
       mov       rsi, rax
       mov       rdi, QWORD [rbp - 16]
       mov       rcx, QWORD [rbp - 32]
-      ALIGN_STACK_AND_CALL rbx, rcx
+      call      rcx
       mov       rcx, QWORD [rbp - 24]
       mov       DWORD [rcx], eax
       cmp       eax, 0
@@ -1034,7 +1034,7 @@ b_insert:
 ; prologue
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 56
+      sub       rsp, 48
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 16], rsi
       mov       QWORD [rbp - 48], rbx
@@ -1045,7 +1045,7 @@ b_insert:
       mov       rdi, QWORD [rbp - 8]
       mov       rcx, [rdi + b_tree.k_get_cb]
       mov       rdi, QWORD [rbp - 16]
-      ALIGN_STACK_AND_CALL rbx, rcx
+      call      rcx
       mov       rsi, rax
       mov       rdi, QWORD [rbp - 8]
       mov       rax, [rdi + b_tree.root]
@@ -1065,7 +1065,7 @@ b_insert:
 ;   tree->root = b_node_alloc();
       mov       rdi, 1
       mov       rsi, b_node_size
-      ALIGN_STACK_AND_CALL rbx, calloc, wrt, ..plt
+      call      calloc wrt ..plt
       mov       rdi, QWORD [rbp - 8]
       mov       QWORD [rdi + b_tree.root], rax
 ;   b_node_init(tree->root, tree, true);
@@ -1099,7 +1099,7 @@ b_insert:
 ;     b_node_t *root = b_node_alloc();
       mov       rdi, 1
       mov       rsi, b_node_size
-      ALIGN_STACK_AND_CALL rbx, calloc, wrt, ..plt
+      call      calloc wrt ..plt
       mov       QWORD [rbp - 24], rax
 ;     b_node_init(root, tree, false);
       xor       edx, edx
@@ -1127,7 +1127,7 @@ b_insert:
       mov       rsi, QWORD [rbp - 16]
       mov       rdi, QWORD [rbp - 24]
       mov       rdi, QWORD [rdi + b_node.object]
-      ALIGN_STACK_AND_CALL rbx, rcx
+      call      rcx
       test      eax, eax
       jns       .skip_inc
 ;       ++i;
@@ -1185,7 +1185,7 @@ b_insert_non_full:
 ; prologue
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 56
+      sub       rsp, 64
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 16], rsi
       mov       QWORD [rbp - 48], rbx
@@ -1216,7 +1216,7 @@ b_insert_non_full:
       mov       rdi, rax
       mov       rsi, QWORD [rbp - 16]
       mov       rcx, QWORD [rbp - 32]
-      ALIGN_STACK_AND_CALL r12, rcx
+      call      rcx
       cmp       eax, 0
       jle       .object_move_break
 ;     node->object[i + 1] = node->object[i];
@@ -1263,7 +1263,7 @@ b_insert_non_full:
       mov       rdi, rax
       mov       rsi, QWORD [rbp - 16]
       mov       rcx, QWORD [rbp - 32]
-      ALIGN_STACK_AND_CALL r12, rcx
+      call      rcx
       cmp       eax, 0
       jle       .child_find_break
 ;     --i;
@@ -1302,7 +1302,7 @@ b_insert_non_full:
       mov       rdi, rax
       mov       rsi, QWORD [rbp - 16]
       mov       rcx, QWORD [rbp - 32]
-      ALIGN_STACK_AND_CALL r12, rcx
+      call      rcx
       cmp       eax, 0
       jge       .skip_inc
 ;       i++;
@@ -1351,7 +1351,7 @@ b_insert_non_full:
 b_merge:
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 56
+      sub       rsp, 64
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 16], rsi
       mov       QWORD [rbp - 56], rbx
@@ -1489,7 +1489,7 @@ b_merge:
       call      b_node_term
 ; b_node_free(sibling);
       mov       rdi, QWORD [rbp - 32]
-      ALIGN_STACK_AND_CALL rbx, free, wrt, ..plt
+      call      free wrt ..plt
 ; epilogue
       mov       rbx, QWORD [rbp - 56]
       mov       rsp, rbp
@@ -1554,7 +1554,7 @@ b_node_init:
 ; prologue
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 40
+      sub       rsp, 48
       push      rbx
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 40], rbx
@@ -1597,7 +1597,7 @@ b_node_init:
 ; node->object = calloc(1, bufsize)
       mov       rsi, QWORD [rbp - 32]
       mov       rdi, 1
-      ALIGN_STACK_AND_CALL rbx, calloc, wrt, ..plt
+      call      calloc wrt ..plt
 ;      call    calloc wrt ..plt
       mov       rdi, QWORD [rbp - 8]
       mov       QWORD [rdi + b_node.object], rax
@@ -1658,12 +1658,12 @@ b_node_term:
       mov       rcx, QWORD [rdi + b_node.object]
 .non_leaf:
       mov       rdi, rcx
-      ALIGN_STACK_AND_CALL r12, free, wrt, ..plt
+      call      free wrt ..plt
 ; (void) memset(n, 0, sizeof(b_node_t))
       mov       rdi, QWORD [rbp - 8]
       xor       rsi, rsi
       mov       rdx, b_node_size
-      ALIGN_STACK_AND_CALL r12, memset, wrt, ..plt
+      call      memset wrt ..plt
 ; epilogue
       mov       rbx, QWORD [rbp - 16]
       mov       rsp, rbp
@@ -1758,7 +1758,7 @@ b_probe:
 ; prologue
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 40
+      sub       rsp, 48
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 16], rsi
       mov       QWORD [rbp - 40], rbx
@@ -1826,7 +1826,7 @@ b_remove:
 ; prologue
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 24
+      sub       rsp, 32
       push      r12
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 16], rsi
@@ -1866,7 +1866,7 @@ b_remove:
       call      b_node_term
 ;   b_node_free(old_root);
       mov       rdi, QWORD [rbp - 24]
-      ALIGN_STACK_AND_CALL r12, free, wrt, ..plt
+      call      free wrt ..plt
 ; }
 .epilogue:
       pop     r12
@@ -1903,7 +1903,7 @@ b_search:
 ; prologue
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 40
+      sub       rsp, 48
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 16], rsi
       mov       QWORD [rbp - 24], rdx
@@ -1982,7 +1982,7 @@ b_split_child:
 ; prologue
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 56
+      sub       rsp, 64
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 16], rsi
       mov       QWORD [rbp - 24], rdx
@@ -1997,7 +1997,7 @@ b_split_child:
 ; b_node_t *node_z = b_node_alloc();
       mov       rdi, 1
       mov       rsi, b_node_size
-      ALIGN_STACK_AND_CALL rbx, calloc, wrt, ..plt
+      call      calloc wrt ..plt
       mov       QWORD [rbp - 32], rax
 ; b_node_init(node_z, node->tree, node_y->leaf);
       mov       rdi, QWORD [rbp - 24]
@@ -2164,7 +2164,7 @@ b_terminate:
 ; prologue:
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 40
+      sub       rsp, 32
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 16], rsi
       mov       QWORD [rbp - 24], rbx
@@ -2191,7 +2191,7 @@ b_terminate:
       call      b_object_at
       mov       rdi, rax
       mov       rcx, QWORD [rbp - 16]
-      ALIGN_STACK_AND_CALL r12, rcx
+      call      rcx
       inc       rbx
       mov       rdi, QWORD [rbp - 8]
       jmp       .loop
@@ -2213,7 +2213,7 @@ b_terminate:
       call      b_node_term
 ; free(node);
       mov       rdi, QWORD [rbp - 8]
-      ALIGN_STACK_AND_CALL r12, free, wrt, ..plt
+      call      free wrt ..plt
 .epilogue:
       mov       rbx, QWORD [rbp - 24]
       mov       r12, QWORD [rbp - 32]
@@ -2244,7 +2244,7 @@ b_traverse:
 ; prologue
       push      rbp
       mov       rbp, rsp
-      sub       rsp, 40
+      sub       rsp, 32
       mov       QWORD [rbp - 8], rdi
       mov       QWORD [rbp - 16], rsi
       mov       QWORD [rbp - 24], rbx
@@ -2270,7 +2270,7 @@ b_traverse:
       call      b_object_at
       mov       rdi, rax
       mov       rcx, QWORD [rbp - 16]
-      ALIGN_STACK_AND_CALL r12, rcx
+      call      rcx
       inc       rbx
       mov       rdi, QWORD [rbp - 8]
       jmp       .loop
