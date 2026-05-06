@@ -110,13 +110,19 @@ This is a ~37% speedup over the previously published minimum-degree=2 baseline (
 (The earlier t=2 configuration remains excellent for very large payloads; t=48 hits the sweet spot for this 24-byte object size.)
 
 ### Valgrind-certified leak-free
-HEAP SUMMARY:
-    in use at exit: 0 bytes in 0 blocks
-  total heap usage: 406,633 allocs, 406,633 frees, 300,808,344 bytes allocated
-
-All heap blocks were freed -- no leaks are possible
-
-ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+==14394== Memcheck, a memory error detector  
+==14394== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.  
+==14394== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info  
+==14394== Command: ./demo 81321295  
+==14394==  
+==14394==  
+==14394== HEAP SUMMARY:  
+==14394==     in use at exit: 0 bytes in 0 blocks  
+==14394==   total heap usage: 543,016 allocs, 543,016 frees, 304,033,551 bytes allocated  
+==14394==  
+==14394== All heap blocks were freed -- no leaks are possible  
+==14394==  
+==14394== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)  
 
 ---
 
