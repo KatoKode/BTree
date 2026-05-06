@@ -62,6 +62,21 @@ Demo/Testing:
 + Included main program inserts ~8M random long keys (with string payload), deletes 75%, (enable walks tree for verification).
 + Handles large-scale testing (configurable counts and degree).
 
+### Benchmarks (Single-Threaded)
+
+**Workload**: 8,388,608 random inserts followed by 6,291,456 random deletes  
+(total: 14,680,064 operations) on 24-byte objects (8-byte key + 16-byte payload).
+
+| Minimum Degree (t) | Average Real Time (10 runs) | Throughput          | Improvement |
+|--------------------|-----------------------------|---------------------|-------------|
+| 2                  | 24.78 s                    | \~593,000 ops/sec   | Baseline    |
+| 48                 | 15.83 s                    | \~927,000 ops/sec   | **+37% faster** |
+
+**Notes**:
+- All benchmarks are single-threaded on the same x86-64 Assembly B-Tree implementation with full rebalancing and generic callbacks.
+- `t = 48` hits the sweet spot for this 24-byte object size (shallower tree + better cache behavior).
+- The original `mindeg=2` results remain excellent for workloads with much larger payloads.
+
 ### Benchmark:
 + Minimum Degree (t) = 2
 + Object Size = 24-bytes with 8-byte key
