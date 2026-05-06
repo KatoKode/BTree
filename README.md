@@ -86,8 +86,11 @@ This x86-64 Assembly B-Tree implementation continues to deliver excellent single
 New results with minimum degree t = 48 (optimized fanout):
 8,388,608 random inserts followed by 6,291,456 random deletes
 (total 14,680,064 operations)
+
 Average real time (10 runs): 15.5 seconds
+
 Throughput: ~947,000 operations per second
+
 This is a ~37% speedup over the previously published minimum-degree=2 baseline (24.78 s / ~593k ops/sec) while still using the same full-rebalancing classic B-Tree with generic callbacks.
 (The earlier t=2 configuration remains excellent for very large payloads; t=48 hits the sweet spot for this 24-byte object size.)
 
