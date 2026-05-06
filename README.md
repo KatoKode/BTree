@@ -62,7 +62,7 @@ Demo/Testing:
 + Included main program inserts ~8M random long keys (with string payload), deletes 75%, (enable walks tree for verification).
 + Handles large-scale testing (configurable counts and degree).
 
-### Benchmarks (Single-Threaded)
+### Benchmarks
 
 **Workload**: 8,388,608 random inserts followed by 6,291,456 random deletes  
 (total: 14,680,064 operations) on 24-byte objects (8-byte key + 16-byte payload).
