@@ -62,9 +62,11 @@ Demo/Testing:
 + Included main program inserts ~8M random long keys (with string payload), deletes 75%, (enable walks tree for verification).
 + Handles large-scale testing (configurable counts and degree).
 
----
-
-### Benchmarks (Single-Threaded)
+### Benchmark:
++ Minimum Degree (t) = 2
++ Object Size = 24-bytes with 8-byte key
++ 8,388,608 insert operations
++ 6,291,456 delete operations
 
 This x86-64 Assembly B-Tree implementation delivered excellent single-threaded performance on mixed insert/delete workloads with (24-byte) objects. Benchmark (single-threaded, minimum degree 2, random keys): 8,388,608 insertions followed by 6,291,456 deletions (14,680,064 total operations):
 
@@ -72,12 +74,22 @@ Average time (10 runs): 24.78 seconds
 
 Throughput: ~593,000 operations per second
 
-
-With minimum degree 64 (shallower tree, larger nodes): Same workload: average 41.73 seconds (~352,000 ops/sec)
-
 These results are competitive with optimized in-memory B-Trees, especially considering full rebalancing (borrow/merge on delete) and generic callbacks. The mindeg=2 configuration excels with larger payloads due to reduced data movement during structural changes.
 
----
+### Benchmark:
++ Minimum Degree (t) = 48
++ Object Size = 24-bytes with 8-byte key
++ 8,388,608 insert operations
++ 6,291,456 delete operations
+
+This x86-64 Assembly B-Tree implementation continues to deliver excellent single-threaded performance on mixed insert/delete workloads with 24-byte objects (8-byte key + 16-byte payload).
+New results with minimum degree t = 48 (optimized fanout):
+8,388,608 random inserts followed by 6,291,456 random deletes
+(total 14,680,064 operations)
+Average real time (10 runs): 15.5 seconds
+Throughput: ~947,000 operations per second
+This is a ~37% speedup over the previously published minimum-degree=2 baseline (24.78 s / ~593k ops/sec) while still using the same full-rebalancing classic B-Tree with generic callbacks.
+(The earlier t=2 configuration remains excellent for very large payloads; t=48 hits the sweet spot for this 24-byte object size.)
 
 ### Valgrind-certified leak-free
 HEAP SUMMARY:
