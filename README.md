@@ -40,8 +40,8 @@ Balancing Mechanisms:
 
 Performance Optimizations:
 
-+ Critical paths (most operations) implemented in x86-64 Assembly.
-+ Custom 64-bit aligned memmove64 in Assembly (uses rep movsq + rep movsb, assumes non-overlapping).
++ Critical paths (all operations) implemented in x86-64 Assembly.
++ Custom 64-bit aligned b_move in Assembly (uses scalar move operations, assumes non-overlapping and object size (in bytes) being multiple of 8).
 + Hybrid key search: linear hunt for small nodes (≤9 objects), binary search for larger.
 + Stack alignment to 16-byte boundary before C/lib calls from Assembly.
 + Compact node layout: children and objects in contiguous buffer (non-leaves store children first).
