@@ -3,7 +3,11 @@
 [![License: GPL-2.0](https://img.shields.io/badge/License-GPL%202.0-blue.svg)](https://opensource.org/licenses/GPL-2.0)
 [![Stars](https://img.shields.io/github/stars/KatoKode/BTree?style=social)](https://github.com/KatoKode/BTree/stargazers)
 
-by JD McIntosh
+<div align="center">
+<img width="640" height="%48" alt="KatoKodeBTree_3" src="https://github.com/user-attachments/assets/e5a24040-21cc-4c47-86a7-d6e32f2990a8" />
+</div>
+
+---
 
 ## INTRODUCTION
 The BTree is implemented as a shared-library with a C interface and a C demo program.
